@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a2e; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="g"></canvas>
+<script>
+const C = document.getElementById('g');
+const X = C.getContext('2d');
+const W = 800, H = 600;
+C.width = W; C.height = H;
+
+let state = 'menu';
+let score = 0, lives = 3, level = 1;
+let player, bullets, emails, particles;
+let lastShot = 0, shootCooldown = 280;
+let comboCount = 0, comboTimer = 0;
+let leaderboard = [];
+let nameInput = '', enteringName = false;
+let flashMsg = '', flashTimer = 0;
+let starField = [];
+let emailsHandled = 0;
+let spawnTimer = 0;
+let levelTransition = 0;
+let specialSpawned = false;
+
+const SPAM = [
+  "🎰 YOU WON $1M!", "💊 Buy Pills Now", "🔥 Hot Singles!", "👑 Nigerian Prince",
+  "📦 Free iPhone!", "🚨 Act NOW!!!", "💰 Easy Money!", "🎁 Claim Prize!",
+  "⚠️ Verify Acct!", "🔒 Pwd Reset Scam", "📧 Fwd:Fwd:Fwd:", "🤑 Work From Home",
+  "💎 Crypto 1000x!", "🏆 Congrats!!!", "🎪 Limited Offer!", "👻 Weird Trick!"
+];
+const LEGIT = [
+  "📋 Sprint Review", "📊 Q4 Report", "🤝 Meeting Notes", "📅 Team Standup",
+  "✅ PR Approved", "📨 Newsletter", "🔔 Deploy Done", "💼 Offer Letter",
+  "📝 Design Review", "🎯 OKR Update"
+];
+const VIP = [
+  { name: "Nir Zohar", label: "⭐ From: Nir Zohar" },
+  { name: "Avishai Abrahami", label: "⭐ From: Avishai" },
+  { name: "Yaniv Even-Haim", label: "⭐ From: Yaniv E-H" }
+];
+
+for (let i = 0; i < 80; i++) starField.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.5 + 0.5, sp: Math.random() * 0.3 + 0.1 });
+
+function getLevelParams() {
+  let spd = 1.0 + (level - 1) * 0.35;
+  let interval = Math.max(350, 1200 - (level - 1) * 80);
+  let needed = 10 + (level - 1) * 5;
+  let legitRatio = Math.min(0.45, 0.25 + level * 0.02);
+  return { spd, interval, needed, legitRatio };
+}
+
+function initGame() {
+  score = 0; lives = 3; level = 1;
+  comboCount = 0; comboTimer = 0;
+  emailsHandled = 0; levelTransition = 0;
+  specialSpawned = false;
+  player = { x: W / 2, y: H - 45, w: 70, h: 30, speed: 5.5 };
+  bullets = []; emails = []; particles = [];
+  spawnTimer = 0;
+}
+
+function spawnEmail() {
+  let params = getLevelParams();
+  // VIP check: once per level, ~30% chance each spawn after halfway
+  let isVip = false;
+  if (!specialSpawned && emailsHandled > params.needed * 0.5 && Math.random() < 0.08) {
+    isVip = true;
+    specialSpawned = true;
+  }
+  let isLegit = isVip ? true : Math.random() < params.legitRatio;
+  let lane = 45 + Math.random() * (W - 90);
+  let vipData = isVip ? VIP[Math.floor(Math.random() * VIP.length)] : null;
+  emails.push({
+    x: lane, y: -40,
+    w: 72, h: 42,
+    vy: params.spd,
+    legit: isLegit,
+    vip: isVip,
+    vipData: vipData,
+    label: isVip ? vipData.label : (isLegit ? LEGIT[Math.floor(Math.random() * LEGIT.length)] : SPAM[Math.floor(Math.random() * SPAM.length)]),
+    bobOffset: Math.random() * Math.PI * 2,
+    flash: 0,
+    rotation: (Math.random() - 0.5) * 0.1
+  });
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+      life: 1, decay: Math.random() * 0.03 + 0.02, color, size: Math.random() * 3 + 1
+    });
+  }
+}
+
+let keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
+  if (state === 'over' && enteringName) {
+    if (e.key === 'Backspace') nameInput = nameInput.slice(0, -1);
+    else if (e.key === 'Enter' && nameInput.length > 0) {
+      leaderboard.push({ name: nameInput, score, level });
+      leaderboard.sort((a, b) => b.score - a.score);
+      leaderboard = leaderboard.slice(0, 10);
+      enteringName = false;
+      state = 'leaderboard';
+    } else if (e.key.length === 1 && nameInput.length < 12) nameInput += e.key;
+    e.preventDefault();
+  }
+  if (state === 'leaderboard' && e.key === ' ') state = 'menu';
+});
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+function advanceLevel() {
+  emailsHandled++;
+  let params = getLevelParams();
+  if (emailsHandled >= params.needed && state === 'play') {
+    level++;
+    emailsHandled = 0;
+    specialSpawned = false;
+    levelTransition = 2000;
+    emails = [];
+    flashMsg = `📬 LEVEL ${level}!`; flashTimer = 1800;
+    score += level * 30;
+  }
+}
+
+function update(dt) {
+  if (state !== 'play') return;
+  if (levelTransition > 0) { levelTransition -= dt; return; }
+
+  let params = getLevelParams();
+
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) {
+    spawnEmail();
+    spawnTimer = params.interval + (Math.random() - 0.5) * params.interval * 0.4;
+  }
+
+  if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+  if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+  player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+
+  if (keys[' '] && Date.now() - lastShot > shootCooldown) {
+    bullets.push({ x: player.x, y: player.y - 18, vy: -9 });
+    lastShot = Date.now();
+  }
+
+  bullets = bullets.filter(b => { b.y += b.vy; return b.y > -10; });
+
+  if (comboTimer > 0) comboTimer -= dt; else comboCount = 0;
+  if (flashTimer > 0) flashTimer -= dt;
+
+  emails.forEach(e => { e.y += e.vy; e.flash = Math.max(0, e.flash - 0.05); });
+
+  // Bullet vs email
+  bullets = bullets.filter(b => {
+    for (let i = emails.length - 1; i >= 0; i--) {
+      let e = emails[i];
+      if (Math.abs(b.x - e.x) < e.w / 2 + 2 && Math.abs(b.y - e.y) < e.h / 2 + 2) {
+        if (e.vip) {
+          lives--;
+          score = Math.max(0, score - 100);
+          flashMsg = `❌ You destroyed ${e.vipData.name}'s email! -100`; flashTimer = 1500;
+          spawnParticles(e.x, e.y, '#ff44ff', 20);
+          comboCount = 0;
+        } else if (e.legit) {
+          lives--;
+          score = Math.max(0, score - 50);
+          flashMsg = '❌ Legit email destroyed! -50'; flashTimer = 1200;
+          spawnParticles(e.x, e.y, '#ff4444', 15);
+          comboCount = 0;
+        } else {
+          comboCount++; comboTimer = 2000;
+          let pts = 10 * (1 + Math.floor(comboCount / 3));
+          score += pts;
+          if (comboCount >= 3) { flashMsg = `🔥 Combo x${comboCount}! +${pts}`; flashTimer = 800; }
+          spawnParticles(e.x, e.y, '#ff6600', 12);
+        }
+        advanceLevel();
+        emails.splice(i, 1);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Emails reaching bottom / hitting firewall
+  emails = emails.filter(e => {
+    let hitFirewall = e.y >= player.y - 20 && e.y <= player.y + 15 && Math.abs(e.x - player.x) < (player.w / 2 + e.w / 2 - 5);
+    let fellPast = e.y > H + 20;
+
+    if (hitFirewall) {
+      if (e.vip) {
+        lives = Math.min(lives + 1, 5);
+        score += 50;
+        flashMsg = `⭐ ${e.vipData.name} says thanks! +1 Life`; flashTimer = 1500;
+        spawnParticles(e.x, e.y, '#ffdd44', 20);
+      } else if (e.legit) {
+        // Legit hitting firewall is fine — delivered
+        score += 15;
+        spawnParticles(e.x, e.y, '#44ff88', 8);
+      } else {
+        // Spam hit firewall — lose life
+        lives--;
+        flashMsg = '💀 Spam breached firewall!'; flashTimer = 1000;
+        spawnParticles(e.x, e.y, '#ff4444', 15);
+        comboCount = 0;
+      }
+      advanceLevel();
+      return false;
+    }
+
+    if (fellPast) {
+      if (e.vip) {
+        // Missed VIP — no penalty, just missed opportunity
+        flashMsg = `📭 Missed ${e.vipData.name}'s email!`; flashTimer = 1000;
+        spawnParticles(e.x, H, '#ffaa44', 8);
+      } else if (e.legit) {
+        // Legit passed through — that's fine, delivered
+        score += 15;
+        spawnParticles(e.x, H, '#44ff88', 6);
+      } else {
+        // Spam passed through — lose life
+        lives--;
+        flashMsg = '💀 Spam reached inbox!'; flashTimer = 1000;
+        spawnParticles(e.x, H, '#ff4444', 12);
+        comboCount = 0;
+      }
+      advanceLevel();
+      return false;
+    }
+    return true;
+  });
+
+  particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0; });
+  starField.forEach(s => { s.y += s.sp; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } });
+
+  if (lives <= 0) { state = 'over'; enteringName = true; nameInput = ''; }
+}
+
+function drawEnvelope(x, y, w, h, color, borderColor, rot) {
+  X.save();
+  X.translate(x, y);
+  X.rotate(rot || 0);
+  X.fillStyle = color;
+  X.strokeStyle = borderColor;
+  X.lineWidth = 2;
+  X.beginPath(); X.roundRect(-w/2, -h/2, w, h, 5); X.fill(); X.stroke();
+  X.beginPath();
+  X.moveTo(-w/2, -h/2);
+  X.lineTo(0, h * 0.05);
+  X.lineTo(w/2, -h/2);
+  X.strokeStyle = borderColor; X.lineWidth = 1.5; X.stroke();
+  X.restore();
+}
+
+function draw() {
+  let grad = X.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0a2e'); grad.addColorStop(1, '#1a0a3e');
+  X.fillStyle = grad; X.fillRect(0, 0, W, H);
+
+  starField.forEach(s => {
+    X.fillStyle = `rgba(255,255,255,${0.3 + Math.sin(Date.now() * 0.001 + s.x) * 0.2})`;
+    X.fillRect(s.x, s.y, s.s, s.s);
+  });
+
+  if (state === 'menu') {
+    X.textAlign = 'center';
+    X.fillStyle = '#ff6600'; X.font = 'bold 48px Courier New';
+    X.fillText('📧 SPAM INVADERS 📧', W/2, 130);
+
+    X.fillStyle = '#aaccff'; X.font = '18px Courier New';
+    X.fillText('Defend your inbox from spam!', W/2, 185);
+
+    X.fillStyle = '#ff4444'; X.font = '15px Courier New';
+    X.fillText('🔫 SHOOT spam emails (dark red) to block them', W/2, 248);
+    X.fillStyle = '#44ff44';
+    X.fillText('📬 Let legit emails (green) pass through safely', W/2, 278);
+    X.fillStyle = '#ffdd44';
+    X.fillText('⭐ Catch VIP emails (gold) for extra lives!', W/2, 308);
+    X.fillStyle = '#ff8866';
+    X.fillText('💀 Spam that gets past your firewall costs a life', W/2, 338);
+
+    X.fillStyle = '#88aaff'; X.font = '14px Courier New';
+    X.fillText('← → or A/D to move  |  SPACE to shoot', W/2, 398);
+
+    X.fillStyle = '#fff'; X.font = 'bold 22px Courier New';
+    let pulse = 0.7 + Math.sin(Date.now() * 0.004) * 0.3;
+    X.globalAlpha = pulse;
+    X.fillText('[ PRESS SPACE TO START ]', W/2, 458);
+    X.globalAlpha = 1;
+
+    // Sample envelopes
+    drawEnvelope(W/2 - 200, 530, 72, 42, '#4a2020', '#cc6644', -0.06);
+    X.fillStyle = '#ffccaa'; X.font = '8px Courier New'; X.textAlign = 'center';
+    X.fillText('🎰 YOU WON $1M!', W/2 - 200, 534);
+    X.fillStyle = '#ff6666'; X.font = '10px Courier New';
+    X.fillText('SPAM', W/2 - 200, 564);
+
+    drawEnvelope(W/2, 530, 72, 42, '#c8f0d8', '#44cc88', 0);
+    X.fillStyle = '#1a5533'; X.font = '8px Courier New';
+    X.fillText('📋 Sprint Review', W/2, 534);
+    X.fillStyle = '#66ff88'; X.font = '10px Courier New';
+    X.fillText('LEGIT', W/2, 564);
+
+    drawEnvelope(W/2 + 200, 530, 72, 42, '#fff3c0', '#ddaa22', 0.06);
+    X.fillStyle = '#665500'; X.font = '8px Courier New';
+    X.fillText('⭐ From: Nir Zohar', W/2 + 200, 534);
+    X.fillStyle = '#ffdd44'; X.font = '10px Courier New';
+    X.fillText('VIP', W/2 + 200, 564);
+
+    X.fillStyle = '#555'; X.font = '11px Courier New'; X.textAlign = 'center';
+    X.fillText('A Wix Emails Production 🚀', W/2, H - 15);
+    return;
+  }
+
+  if (state === 'play' || state === 'over') {
+    X.fillStyle = 'rgba(100,150,255,0.04)';
+    X.fillRect(0, H - 65, W, 65);
+    X.strokeStyle = 'rgba(100,150,255,0.15)';
+    X.setLineDash([5, 5]);
+    X.beginPath(); X.moveTo(0, H - 65); X.lineTo(W, H - 65); X.stroke();
+    X.setLineDash([]);
+
+    // Emails
+    emails.forEach(e => {
+      let bob = Math.sin(Date.now() * 0.003 + e.bobOffset) * 1.5;
+      let ey = e.y + bob;
+
+      if (e.vip) {
+        // Gold envelope with sparkle
+        drawEnvelope(e.x, ey, e.w, e.h, '#fff3c0', '#ddaa22', e.rotation);
+        X.shadowColor = '#ffdd44';
+        X.shadowBlur = 10 + Math.sin(Date.now() * 0.008) * 5;
+        X.fillStyle = 'rgba(255,221,68,0.15)';
+        X.beginPath(); X.roundRect(e.x - e.w/2 - 4, ey - e.h/2 - 4, e.w + 8, e.h + 8, 8); X.fill();
+        X.shadowBlur = 0;
+        X.fillStyle = '#665500';
+      } else if (e.legit) {
+        drawEnvelope(e.x, ey, e.w, e.h, '#c8f0d8', '#44cc88', e.rotation);
+        X.shadowColor = '#44ff88';
+        X.shadowBlur = 5 + Math.sin(Date.now() * 0.005) * 2;
+        X.fillStyle = 'rgba(68,255,136,0.06)';
+        X.beginPath(); X.roundRect(e.x - e.w/2 - 2, ey - e.h/2 - 2, e.w + 4, e.h + 4, 6); X.fill();
+        X.shadowBlur = 0;
+        X.fillStyle = '#1a5533';
+      } else {
+        let f = e.flash;
+        let r = Math.floor(74 + f * 180), g = Math.floor(32 + f * 100), b2 = Math.floor(32 + f * 80);
+        drawEnvelope(e.x, ey, e.w, e.h, `rgb(${r},${g},${b2})`, '#cc6644', e.rotation);
+        X.fillStyle = '#ffccaa';
+      }
+      X.font = '8px Courier New'; X.textAlign = 'center';
+      let lbl = e.label.length > 14 ? e.label.slice(0, 14) : e.label;
+      X.fillText(lbl, e.x, ey + 4);
+    });
+
+    // Bullets
+    bullets.forEach(b => {
+      X.fillStyle = '#44ddff';
+      X.shadowColor = '#44ddff'; X.shadowBlur = 8;
+      X.fillRect(b.x - 2, b.y - 7, 4, 14);
+      X.shadowBlur = 0;
+    });
+
+    // Player
+    X.fillStyle = '#4488ff';
+    X.beginPath();
+    X.moveTo(player.x, player.y - 18);
+    X.lineTo(player.x - 35, player.y + 15);
+    X.lineTo(player.x + 35, player.y + 15);
+    X.closePath(); X.fill();
+    X.strokeStyle = '#66aaff'; X.lineWidth = 2; X.stroke();
+    X.fillStyle = '#88ccff';
+    X.beginPath();
+    X.moveTo(player.x, player.y - 10);
+    X.lineTo(player.x - 18, player.y + 10);
+    X.lineTo(player.x + 18, player.y + 10);
+    X.closePath(); X.fill();
+    X.fillStyle = '#aaddff'; X.font = '9px Courier New'; X.textAlign = 'center';
+    X.fillText('FIREWALL', player.x, player.y + 28);
+
+    // Particles
+    particles.forEach(p => {
+      X.globalAlpha = p.life; X.fillStyle = p.color;
+      X.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+      X.globalAlpha = 1;
+    });
+
+    // HUD
+    let params = getLevelParams();
+    X.textAlign = 'left'; X.fillStyle = '#fff'; X.font = 'bold 18px Courier New';
+    X.fillText(`Score: ${score}`, 15, 28);
+    X.fillText(`Level: ${level}`, 15, 52);
+
+    let prog = emailsHandled / params.needed;
+    X.fillStyle = '#333'; X.fillRect(200, 14, 200, 16);
+    X.fillStyle = '#44aaff'; X.fillRect(200, 14, 200 * prog, 16);
+    X.strokeStyle = '#66ccff'; X.lineWidth = 1; X.strokeRect(200, 14, 200, 16);
+    X.fillStyle = '#fff'; X.font = '11px Courier New'; X.textAlign = 'center';
+    X.fillText(`${emailsHandled}/${params.needed}`, 300, 27);
+
+    X.textAlign = 'right'; X.font = '16px serif';
+    let hearts = '';
+    for (let i = 0; i < lives; i++) hearts += '❤️ ';
+    X.fillText(hearts, W - 15, 28);
+
+    if (comboCount >= 3 && comboTimer > 0) {
+      X.textAlign = 'center';
+      X.fillStyle = `rgba(255,180,0,${Math.min(1, comboTimer / 1000)})`;
+      X.font = 'bold 16px Courier New';
+      X.fillText(`🔥 COMBO x${comboCount}`, W/2, 75);
+    }
+
+    if (flashTimer > 0) {
+      X.textAlign = 'center';
+      X.globalAlpha = Math.min(1, flashTimer / 300);
+      X.fillStyle = '#ffffff'; X.font = 'bold 22px Courier New';
+      X.fillText(flashMsg, W/2, H / 2 - 40);
+      X.globalAlpha = 1;
+    }
+
+    if (levelTransition > 0) {
+      X.fillStyle = `rgba(0,0,0,${Math.min(0.5, levelTransition / 2000)})`;
+      X.fillRect(0, 0, W, H);
+    }
+  }
+
+  if (state === 'over') {
+    X.fillStyle = 'rgba(0,0,0,0.75)'; X.fillRect(0, 0, W, H);
+    X.textAlign = 'center';
+    X.fillStyle = '#ff4444'; X.font = 'bold 44px Courier New';
+    X.fillText('INBOX BREACHED!', W/2, 170);
+    X.fillStyle = '#fff'; X.font = '22px Courier New';
+    X.fillText(`Final Score: ${score}`, W/2, 230);
+    X.fillText(`Reached Level: ${level}`, W/2, 265);
+
+    if (enteringName) {
+      X.fillStyle = '#aaccff'; X.font = '18px Courier New';
+      X.fillText('Enter your name for the leaderboard:', W/2, 330);
+      X.fillStyle = '#fff'; X.font = 'bold 28px Courier New';
+      X.fillText(nameInput + (Date.now() % 1000 < 500 ? '▌' : ''), W/2, 375);
+      X.fillStyle = '#888'; X.font = '14px Courier New';
+      X.fillText('Press ENTER to submit', W/2, 410);
+    }
+  }
+
+  if (state === 'leaderboard') {
+    X.fillStyle = 'rgba(0,0,0,0.88)'; X.fillRect(0, 0, W, H);
+    X.textAlign = 'center';
+    X.fillStyle = '#ffcc00'; X.font = 'bold 36px Courier New';
+    X.fillText('🏆 LEADERBOARD 🏆', W/2, 80);
+
+    leaderboard.forEach((entry, i) => {
+      let y = 130 + i * 38;
+      let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+      X.fillStyle = i < 3 ? '#ffdd66' : '#aaaacc';
+      X.font = `${i < 3 ? 'bold ' : ''}18px Courier New`;
+      X.textAlign = 'left';
+      X.fillText(`${medal} ${(i+1+'').padStart(2)}. ${entry.name.padEnd(12)} ${(entry.score+'').padStart(6)}pts  Lv.${entry.level}`, W/2 - 230, y);
+    });
+
+    if (leaderboard.length === 0) {
+      X.fillStyle = '#666'; X.textAlign = 'center'; X.font = '18px Courier New';
+      X.fillText('No scores yet!', W/2, 200);
+    }
+
+    X.textAlign = 'center'; X.fillStyle = '#88aaff'; X.font = '16px Courier New';
+    X.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W/2, 540);
+  }
+}
+
+let lastTime = 0;
+function loop(time) {
+  let dt = time - lastTime; lastTime = time;
+  if (dt > 100) dt = 16;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
