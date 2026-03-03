@@ -5,7 +5,7 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0a0a2e; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
-canvas { display: block; }
+canvas { display: block; image-rendering: pixelated; }
 </style>
 </head>
 <body>
@@ -15,6 +15,14 @@ const C = document.getElementById('g');
 const X = C.getContext('2d');
 const W = 800, H = 600;
 C.width = W; C.height = H;
+
+function fitCanvas() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  C.style.width = (W * scale) + 'px';
+  C.style.height = (H * scale) + 'px';
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
 
 let state = 'menu';
 let score = 0, lives = 3, level = 1;
