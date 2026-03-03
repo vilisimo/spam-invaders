@@ -21,7 +21,7 @@ let score = 0, lives = 3, level = 1;
 let player, bullets, emails, particles;
 let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
-let leaderboard = [];
+let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
 let nameInput = '', enteringName = false;
 let flashMsg = '', flashTimer = 0;
 let starField = [];
@@ -111,6 +111,7 @@ document.addEventListener('keydown', e => {
       leaderboard.push({ name: nameInput, score, level });
       leaderboard.sort((a, b) => b.score - a.score);
       leaderboard = leaderboard.slice(0, 10);
+      localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
       enteringName = false;
       state = 'leaderboard';
     } else if (e.key.length === 1 && nameInput.length < 12) nameInput += e.key;

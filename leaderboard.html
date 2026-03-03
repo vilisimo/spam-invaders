@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Spam Invaders — Leaderboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a2e; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="g"></canvas>
+<script>
+const C = document.getElementById('g');
+const X = C.getContext('2d');
+let W, H;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  C.width = W;
+  C.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
+
+let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
+
+window.addEventListener('storage', e => {
+  if (e.key === 'spamInvadersLeaderboard') {
+    leaderboard = JSON.parse(e.newValue || '[]');
+  }
+});
+
+const starField = [];
+for (let i = 0; i < 150; i++) {
+  starField.push({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 0.5, sp: Math.random() * 0.2 + 0.05 });
+}
+
+function draw() {
+  const grad = X.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0a2e');
+  grad.addColorStop(1, '#1a0a3e');
+  X.fillStyle = grad;
+  X.fillRect(0, 0, W, H);
+
+  const now = Date.now();
+
+  starField.forEach(s => {
+    s.y += s.sp * 0.0005;
+    if (s.y > 1) { s.y = 0; s.x = Math.random(); }
+    X.fillStyle = `rgba(255,255,255,${0.3 + Math.sin(now * 0.001 + s.x * 100) * 0.2})`;
+    X.fillRect(s.x * W, s.y * H, s.s, s.s);
+  });
+
+  const cx = W / 2;
+  const scale = Math.min(W / 800, H / 700);
+  const titleSize = Math.round(48 * scale);
+  const rowSize = Math.round(28 * scale);
+  const subSize = Math.round(16 * scale);
+
+  // Pulsing title
+  const pulse = 0.85 + Math.sin(now * 0.003) * 0.15;
+  X.save();
+  X.globalAlpha = pulse;
+  X.textAlign = 'center';
+  X.fillStyle = '#ffcc00';
+  X.font = `bold ${titleSize}px Courier New`;
+  X.fillText('🏆 LEADERBOARD 🏆', cx, H * 0.12);
+  X.restore();
+
+  X.textAlign = 'center';
+  X.fillStyle = '#667799';
+  X.font = `${subSize}px Courier New`;
+  X.fillText('SPAM INVADERS', cx, H * 0.12 + titleSize * 0.7);
+
+  if (leaderboard.length === 0) {
+    X.fillStyle = '#556677';
+    X.font = `${rowSize}px Courier New`;
+    X.fillText('No scores yet — go play!', cx, H * 0.5);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  const startY = H * 0.22;
+  const rowH = Math.min(rowSize * 2.2, (H * 0.7) / 10);
+
+  leaderboard.forEach((entry, i) => {
+    const y = startY + i * rowH;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    const isTop3 = i < 3;
+
+    if (isTop3) {
+      const glow = 0.04 + Math.sin(now * 0.002 + i) * 0.02;
+      X.fillStyle = `rgba(255,204,0,${glow})`;
+      X.beginPath();
+      X.roundRect(cx - 320 * scale, y - rowSize * 0.7, 640 * scale, rowH * 0.85, 8 * scale);
+      X.fill();
+    }
+
+    X.fillStyle = isTop3 ? '#ffdd66' : '#aaaacc';
+    X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
+    X.textAlign = 'left';
+
+    const rowX = cx - 300 * scale;
+    const rank = `${medal} ${(i + 1 + '').padStart(2)}.`;
+    const name = entry.name.padEnd(12);
+    const score = `${(entry.score + '').padStart(6)} pts`;
+    const lvl = `Lv.${entry.level}`;
+    X.fillText(`${rank} ${name} ${score}  ${lvl}`, rowX, y);
+  });
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
