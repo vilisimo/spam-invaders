@@ -97,10 +97,12 @@ function fitCanvas() {
 fitCanvas();
 window.addEventListener('resize', fitCanvas);
 
-const BOOTH_API_KEY = window.BOOTH_API_KEY;
+let boothApiKey = '';
 const SUBMIT_SCORES_URL = 'https://wix-conf-vilnius.base44.app/api/functions/submitScores';
 
-let state = BOOTH_API_KEY ? 'menu' : 'error';
+let state = 'apikey';
+let apiKeyInput = '';
+const isValidApiKey = v => /^booth_[A-Za-z0-9]+$/.test(v);
 let submitStatus = null;
 let submitMessage = '';
 let score = 0, lives = 3, level = 1;
@@ -217,7 +219,7 @@ function submitScores() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      api_key: BOOTH_API_KEY,
+      api_key: boothApiKey,
       scores: leaderboard.map(e => e.email)
     })
   })
@@ -239,6 +241,20 @@ let keys = {};
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
   keys[e.code] = true;
+  if (state === 'apikey') {
+    if (e.key === 'Backspace') {
+      apiKeyInput = apiKeyInput.slice(0, -1);
+    } else if (e.key === 'Enter') {
+      if (isValidApiKey(apiKeyInput)) {
+        boothApiKey = apiKeyInput;
+        state = 'menu';
+      }
+    } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && apiKeyInput.length < 80) {
+      apiKeyInput += e.key;
+    }
+    if (e.key !== 'v' || !(e.metaKey || e.ctrlKey)) e.preventDefault();
+    return;
+  }
   if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
   if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
   if (state === 'over' && enteringEmail) {
@@ -266,6 +282,12 @@ document.addEventListener('keydown', e => {
   if (state === 'leaderboard' && e.key === ' ') state = 'menu';
 });
 document.addEventListener('keyup', e => { keys[e.key] = false; keys[e.code] = false; });
+document.addEventListener('paste', e => {
+  if (state !== 'apikey') return;
+  const text = (e.clipboardData || window['clipboardData']).getData('text').trim();
+  apiKeyInput = (apiKeyInput + text).slice(0, 80);
+  e.preventDefault();
+});
 
 function advanceLevel() {
   emailsHandled++;
@@ -492,18 +514,40 @@ function draw() {
   grad.addColorStop(0, '#0e1a3a'); grad.addColorStop(1, '#1a2750');
   X.fillStyle = grad; X.fillRect(0, 0, W, H);
 
-  if (state === 'error') {
+  if (state === 'apikey') {
+    const blink = Date.now() % 1000 < 500;
+    const keyValid = isValidApiKey(apiKeyInput);
+    const fieldX = W/2 - 280;
+    const fieldW = 560;
+    const keyColor = keyValid ? '#66ff99' : '#ffcc33';
+
     X.textAlign = 'center';
-    X.fillStyle = '#ff4444'; X.font = 'bold 36px Courier New';
-    X.fillText('⚠ CONFIGURATION ERROR', W/2, H/2 - 80);
-    X.fillStyle = '#ffcc66'; X.font = 'bold 20px Courier New';
-    X.fillText('BOOTH_API_KEY is not set', W/2, H/2 - 30);
-    X.fillStyle = '#aaccff'; X.font = '16px Courier New';
-    X.fillText('Create config.js next to index.html and set', W/2, H/2 + 10);
-    X.fillStyle = '#ffffff'; X.font = 'bold 16px Courier New';
-    X.fillText("window.BOOTH_API_KEY = 'booth_...';", W/2, H/2 + 40);
-    X.fillStyle = '#88aaff'; X.font = '14px Courier New';
-    X.fillText('See config.example.js for a template.', W/2, H/2 + 80);
+    X.fillStyle = '#ff6600'; X.font = 'bold 42px Courier New';
+    X.fillText('📧 SPAM INVADERS 📧', W/2, 150);
+
+    X.fillStyle = '#aaccff'; X.font = '18px Courier New';
+    X.fillText('Enter your booth API key to begin:', W/2, 230);
+
+    X.textAlign = 'left';
+    X.fillStyle = keyColor; X.font = 'bold 16px Courier New';
+    X.fillText('🔑  BOOTH API KEY', fieldX, 280);
+    X.strokeStyle = keyColor;
+    X.lineWidth = 2;
+    X.strokeRect(fieldX, 290, fieldW, 42);
+    X.fillStyle = '#ffffff'; X.font = 'bold 18px Courier New';
+    X.fillText(apiKeyInput + (blink ? '▌' : ''), fieldX + 10, 318);
+
+    X.textAlign = 'center';
+    if (apiKeyInput.length === 0) {
+      X.fillStyle = '#ffaa44'; X.font = 'bold 14px Courier New';
+      X.fillText('⚠  Paste or type your key (format: booth_…)', W/2, 360);
+    } else if (!keyValid) {
+      X.fillStyle = '#ff6666'; X.font = 'bold 14px Courier New';
+      X.fillText('⚠  Invalid key format — expected booth_… ', W/2, 360);
+    } else {
+      X.fillStyle = '#66ff99'; X.font = 'bold 14px Courier New';
+      X.fillText('✓  Press ENTER to continue', W/2, 360);
+    }
     return;
   }
 
