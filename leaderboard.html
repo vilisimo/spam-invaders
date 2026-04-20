@@ -168,9 +168,16 @@ function draw() {
   const startY = H * 0.22;
   const rowH = Math.min(rowSize * 2.2, (H * 0.7) / 10);
 
+  const leftX = cx - 340 * scale;
+  const medalX = leftX;
+  const rankX = leftX + 40 * scale;
+  const emailX = leftX + 100 * scale;
+  const lvlX = cx + 340 * scale;
+  const scoreX = lvlX - 80 * scale;
+
   leaderboard.forEach((entry, i) => {
     const y = startY + i * rowH;
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
     const isTop3 = i < 3;
 
     if (isTop3) {
@@ -183,14 +190,23 @@ function draw() {
 
     X.fillStyle = isTop3 ? '#ffdd66' : '#aaaacc';
     X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
-    X.textAlign = 'left';
 
-    const rowX = cx - 340 * scale;
-    const rank = `${medal} ${(i + 1 + '').padStart(2)}.`;
-    const who = entry.email.padEnd(28);
-    const score = `${(entry.score + '').padStart(6)} pts`;
-    const lvl = `Lv.${entry.level}`;
-    X.fillText(`${rank} ${who} ${score}  ${lvl}`, rowX, y);
+    if (medal) {
+      X.textAlign = 'center';
+      X.font = `${rowSize}px Courier New`;
+      X.fillText(medal, medalX + 10 * scale, y);
+      X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
+    }
+
+    X.textAlign = 'left';
+    X.fillText(`${(i + 1 + '').padStart(2)}.`, rankX, y);
+    X.fillText(entry.email, emailX, y);
+
+    X.textAlign = 'right';
+    X.fillText(`${entry.score} pts`, scoreX, y);
+
+    X.textAlign = 'right';
+    X.fillText(`Lv.${entry.level}`, lvlX, y);
   });
 
   }
