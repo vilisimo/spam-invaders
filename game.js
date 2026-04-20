@@ -200,25 +200,25 @@ function update(dt) {
     return true;
   });
 
-  // Emails reaching bottom / hitting firewall
+  // Emails reaching bottom / hitting mailman
   emails = emails.filter(e => {
-    let hitFirewall = e.y >= player.y - 20 && e.y <= player.y + 15 && Math.abs(e.x - player.x) < (player.w / 2 + e.w / 2 - 5);
+    let hitMailman = e.y >= player.y - 20 && e.y <= player.y + 15 && Math.abs(e.x - player.x) < (player.w / 2 + e.w / 2 - 5);
     let fellPast = e.y > H + 20;
 
-    if (hitFirewall) {
+    if (hitMailman) {
       if (e.vip) {
         lives = Math.min(lives + 1, 5);
         score += 50;
         flashMsg = `⭐ ${e.vipData.name} says thanks! +1 Life`; flashTimer = 1500;
         spawnParticles(e.x, e.y, '#ffdd44', 20);
       } else if (e.legit) {
-        // Legit hitting firewall is fine — delivered
+        // Legit caught by mailman — delivered
         score += 15;
         spawnParticles(e.x, e.y, '#44ff88', 8);
       } else {
-        // Spam hit firewall — lose life
+        // Spam hit the mailman — lose life
         lives--;
-        flashMsg = '💀 Spam breached firewall!'; flashTimer = 1000;
+        flashMsg = '💀 Spam slipped past the mailman!'; flashTimer = 1000;
         spawnParticles(e.x, e.y, '#ff4444', 15);
         comboCount = 0;
       }
@@ -295,7 +295,7 @@ function draw() {
     X.fillStyle = '#ffdd44';
     X.fillText('⭐ Catch VIP emails (gold) for extra lives!', W/2, 308);
     X.fillStyle = '#ff8866';
-    X.fillText('💀 Spam that gets past your firewall costs a life', W/2, 338);
+    X.fillText('💀 Spam that gets past the mailman costs a life', W/2, 338);
 
     X.fillStyle = '#88aaff'; X.font = '14px Courier New';
     X.fillText('← → or A/D to move  |  SPACE to shoot', W/2, 398);
