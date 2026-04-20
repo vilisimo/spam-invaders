@@ -475,7 +475,7 @@ function draw() {
     X.stroke();
 
     X.fillStyle = '#aaddff'; X.font = '9px Courier New'; X.textAlign = 'center';
-    X.fillText('POSTAL', px, py + 28);
+    X.fillText('MAILMAN', px, py + 28);
 
     // Particles
     particles.forEach(p => {
