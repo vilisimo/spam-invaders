@@ -3,6 +3,92 @@ const X = C.getContext('2d');
 const W = 800, H = 600;
 C.width = W; C.height = H;
 
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window['webkitAudioContext'])(); }
+    catch (e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone({ freq = 440, freqEnd = null, type = 'sine', dur = 0.15, vol = 0.15, delay = 0 }) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (freqEnd !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+function playNoise({ dur = 0.12, vol = 0.1, filterFreq = 2000, delay = 0 }) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const bufferSize = Math.floor(ctx.sampleRate * dur);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = filterFreq;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol, t0 + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(filter).connect(gain).connect(ctx.destination);
+  src.start(t0);
+  src.stop(t0 + dur + 0.02);
+}
+
+const sfx = {
+  throwPlane() {
+    playNoise({ dur: 0.12, vol: 0.08, filterFreq: 3500 });
+    playTone({ freq: 900, freqEnd: 400, type: 'triangle', dur: 0.1, vol: 0.06 });
+  },
+  hitSpam() {
+    playTone({ freq: 320, freqEnd: 90, type: 'square', dur: 0.12, vol: 0.12 });
+    playNoise({ dur: 0.08, vol: 0.1, filterFreq: 1200 });
+  },
+  hitLegit() {
+    playTone({ freq: 380, freqEnd: 140, type: 'sawtooth', dur: 0.22, vol: 0.14 });
+    playTone({ freq: 190, freqEnd: 70, type: 'sawtooth', dur: 0.28, vol: 0.1, delay: 0.04 });
+  },
+  hitVip() {
+    playTone({ freq: 520, freqEnd: 130, type: 'sawtooth', dur: 0.18, vol: 0.16 });
+    playTone({ freq: 260, freqEnd: 60, type: 'square', dur: 0.3, vol: 0.12, delay: 0.08 });
+    playNoise({ dur: 0.25, vol: 0.08, filterFreq: 600, delay: 0.05 });
+  },
+  spamBreached() {
+    playTone({ freq: 220, freqEnd: 55, type: 'sawtooth', dur: 0.35, vol: 0.16 });
+    playNoise({ dur: 0.3, vol: 0.1, filterFreq: 400, delay: 0.02 });
+    playTone({ freq: 110, freqEnd: 40, type: 'square', dur: 0.4, vol: 0.1, delay: 0.1 });
+  },
+  levelComplete() {
+    playTone({ freq: 523, type: 'triangle', dur: 0.14, vol: 0.14 });
+    playTone({ freq: 659, type: 'triangle', dur: 0.14, vol: 0.14, delay: 0.12 });
+    playTone({ freq: 784, type: 'triangle', dur: 0.14, vol: 0.14, delay: 0.24 });
+    playTone({ freq: 1047, type: 'triangle', dur: 0.28, vol: 0.16, delay: 0.36 });
+  },
+  gameOver() {
+    playTone({ freq: 440, freqEnd: 110, type: 'sawtooth', dur: 0.5, vol: 0.18 });
+    playTone({ freq: 330, freqEnd: 80, type: 'square', dur: 0.6, vol: 0.14, delay: 0.15 });
+    playTone({ freq: 165, freqEnd: 45, type: 'sawtooth', dur: 0.7, vol: 0.12, delay: 0.35 });
+    playNoise({ dur: 0.5, vol: 0.08, filterFreq: 300, delay: 0.2 });
+  }
+};
+
 function fitCanvas() {
   const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
   C.style.width = (W * scale) + 'px';
@@ -140,6 +226,7 @@ function advanceLevel() {
     emails = [];
     flashMsg = `📬 LEVEL ${level}!`; flashTimer = 1800;
     score += level * 30;
+    sfx.levelComplete();
   }
 }
 
@@ -168,6 +255,7 @@ function update(dt) {
   if (keys[' '] && Date.now() - lastShot > shootCooldown) {
     bullets.push({ x: player.x, y: player.y - 18, vy: -9 });
     lastShot = Date.now();
+    sfx.throwPlane();
   }
 
   bullets = bullets.filter(b => { b.y += b.vy; return b.y > -10; });
@@ -188,18 +276,21 @@ function update(dt) {
           flashMsg = `❌ You destroyed ${e.vipData.name}'s email! -100`; flashTimer = 1500;
           spawnParticles(e.x, e.y, '#ff44ff', 20);
           comboCount = 0;
+          sfx.hitVip();
         } else if (e.legit) {
           lives--;
           score = Math.max(0, score - 50);
           flashMsg = '❌ Legit email destroyed! -50'; flashTimer = 1200;
           spawnParticles(e.x, e.y, '#ff4444', 15);
           comboCount = 0;
+          sfx.hitLegit();
         } else {
           comboCount++; comboTimer = 2000;
           let pts = 10 * (1 + Math.floor(comboCount / 3));
           score += pts;
           if (comboCount >= 3) { flashMsg = `🔥 Combo x${comboCount}! +${pts}`; flashTimer = 800; }
           spawnParticles(e.x, e.y, '#ff6600', 12);
+          sfx.hitSpam();
         }
         advanceLevel();
         emails.splice(i, 1);
@@ -230,6 +321,7 @@ function update(dt) {
         flashMsg = '💀 Spam slipped past the mailman!'; flashTimer = 1000;
         spawnParticles(e.x, e.y, '#ff4444', 15);
         comboCount = 0;
+        sfx.spamBreached();
       }
       advanceLevel();
       return false;
@@ -250,6 +342,7 @@ function update(dt) {
         flashMsg = '💀 Spam reached inbox!'; flashTimer = 1000;
         spawnParticles(e.x, H, '#ff4444', 12);
         comboCount = 0;
+        sfx.spamBreached();
       }
       advanceLevel();
       return false;
@@ -260,7 +353,7 @@ function update(dt) {
   particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0; });
   mailField.forEach(m => { m.y += m.sp; if (m.y > H + 20) { m.y = -20; m.x = Math.random() * W; } });
 
-  if (lives <= 0) { state = 'over'; enteringName = true; nameInput = ''; }
+  if (lives <= 0) { state = 'over'; enteringName = true; nameInput = ''; sfx.gameOver(); }
 }
 
 function drawEnvelope(x, y, w, h, color, borderColor, rot) {
