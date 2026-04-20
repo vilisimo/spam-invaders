@@ -89,33 +89,29 @@ levelClearBonus = level * 30
 
 3. **Level transition:** There's a 2-second pause between levels where the screen dims. During this time no input is processed. This could feel laggy at a booth. Consider shortening or making it feel more dynamic.
 
-4. **No sound at all.** For a booth game, audio feedback would massively improve the experience. Consider adding simple sounds for: shooting, destroying spam, catching VIP, losing a life, level up, game over.
-
-5. **Leaderboard persistence across booth sessions.** The leaderboard is stored in `localStorage`, so it persists across reloads and across days on the same machine. For a fresh start each day, manually clear `localStorage` or add a "reset leaderboard" affordance.
-
 ### Gameplay Improvements to Consider
 
-6. **Visual feedback for near-misses:** When spam barely passes by the mailman, there's no indication of how close it was. A "close call" visual or bonus could add excitement.
+4. **Visual feedback for near-misses:** When spam barely passes by the mailman, there's no indication of how close it was. A "close call" visual or bonus could add excitement.
 
-7. **Difficulty curve may be too gentle early on.** First level with only 10 emails at slow speed might feel boring for experienced gamers. Consider starting slightly faster or having a "hard mode" toggle.
+5. **Difficulty curve may be too gentle early on.** First level with only 10 emails at slow speed might feel boring for experienced gamers. Consider starting slightly faster or having a "hard mode" toggle.
 
-8. **No pause functionality.** At a booth this could be useful if someone needs to step away momentarily.
+6. **No pause functionality.** At a booth this could be useful if someone needs to step away momentarily.
 
-9. **Email spawn positioning:** Emails spawn at random X positions. Sometimes multiple emails stack in the same column making it impossible to shoot one without hitting another behind it. Consider minimum spacing between active emails.
+7. **Email spawn positioning:** Emails spawn at random X positions. Sometimes multiple emails stack in the same column making it impossible to shoot one without hitting another behind it. Consider minimum spacing between active emails.
 
-10. **The "MAILMAN" label below the player sprite** is small and may not be visible at booth distance. The sprite itself is now an illustrated mailman (cap, uniform, satchel), so the text label is arguably redundant.
+8. **The "MAILMAN" label below the player sprite** is small and may not be visible at booth distance. The sprite itself is now an illustrated mailman (cap, uniform, satchel), so the text label is arguably redundant.
 
-11. **Mobile/touch support:** If this might be played on a tablet at the booth, touch controls would be needed (currently keyboard only).
+9. **Mobile/touch support:** If this might be played on a tablet at the booth, touch controls would be needed (currently keyboard only).
 
-12. **Canvas scales via CSS only.** Internal resolution is fixed 800×600 and `fitCanvas()` scales it to ~95% of the smaller window dimension. This works on any laptop but can look soft at very high DPI or letterboxed at unusual aspect ratios.
+10. **Canvas scales via CSS only.** Internal resolution is fixed 800×600 and `fitCanvas()` scales it to ~95% of the smaller window dimension. This works on any laptop but can look soft at very high DPI or letterboxed at unusual aspect ratios.
 
 ### Feature Ideas from Original Discussion
 
-13. **Envelope Launcher variant** was discussed as an alternative concept (Angry Birds-style catapult). Could be a second game mode.
+11. **Envelope Launcher variant** was discussed as an alternative concept (Angry Birds-style catapult). Could be a second game mode.
 
-14. **The original Space Invaders grid formation** was tried first but had issues with legit emails blocking spam. The current Tetris-drop approach solved this. Don't go back to grid formation.
+12. **The original Space Invaders grid formation** was tried first but had issues with legit emails blocking spam. The current Tetris-drop approach solved this. Don't go back to grid formation.
 
-15. **Screen shake was removed** by design — it was too jarring especially on game over. Don't re-add it.
+13. **Screen shake was removed** by design — it was too jarring especially on game over. Don't re-add it.
 
 ## Design Decisions & Context
 
