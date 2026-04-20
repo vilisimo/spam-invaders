@@ -45,7 +45,7 @@ const VIP = [
 for (let i = 0; i < 80; i++) starField.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.5 + 0.5, sp: Math.random() * 0.3 + 0.1 });
 
 function getLevelParams() {
-  let spd = 1.0 + (level - 1) * 0.35;
+  let spd = 2.5 + (level - 1) * 0.6;
   let interval = Math.max(350, 1200 - (level - 1) * 80);
   let needed = 10 + (level - 1) * 5;
   let legitRatio = Math.min(0.45, 0.25 + level * 0.02);
