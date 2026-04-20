@@ -376,9 +376,22 @@ function draw() {
 
     // Bullets
     bullets.forEach(b => {
-      X.fillStyle = '#44ddff';
-      X.shadowColor = '#44ddff'; X.shadowBlur = 8;
-      X.fillRect(b.x - 2, b.y - 7, 4, 14);
+      X.shadowColor = '#aaccff'; X.shadowBlur = 6;
+      X.fillStyle = '#f8fbff';
+      X.strokeStyle = '#5a6a80';
+      X.lineWidth = 1;
+      X.beginPath();
+      X.moveTo(b.x, b.y - 7);
+      X.lineTo(b.x - 6, b.y + 4);
+      X.lineTo(b.x + 6, b.y + 4);
+      X.closePath();
+      X.fill();
+      X.stroke();
+      X.strokeStyle = '#c8d4e8';
+      X.beginPath();
+      X.moveTo(b.x, b.y - 7);
+      X.lineTo(b.x, b.y + 2);
+      X.stroke();
       X.shadowBlur = 0;
     });
 
