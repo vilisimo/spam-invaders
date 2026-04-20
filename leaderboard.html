@@ -33,6 +33,12 @@ window.addEventListener('storage', e => {
   }
 });
 
+window.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+    window.location.href = 'index.html';
+  }
+});
+
 const starField = [];
 for (let i = 0; i < 150; i++) {
   starField.push({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 0.5, sp: Math.random() * 0.2 + 0.05 });
@@ -79,9 +85,7 @@ function draw() {
     X.fillStyle = '#556677';
     X.font = `${rowSize}px Courier New`;
     X.fillText('No scores yet — go play!', cx, H * 0.5);
-    requestAnimationFrame(draw);
-    return;
-  }
+  } else {
 
   const startY = H * 0.22;
   const rowH = Math.min(rowSize * 2.2, (H * 0.7) / 10);
@@ -110,6 +114,17 @@ function draw() {
     const lvl = `Lv.${entry.level}`;
     X.fillText(`${rank} ${name} ${score}  ${lvl}`, rowX, y);
   });
+
+  }
+
+  const backPulse = 0.7 + Math.sin(now * 0.004) * 0.3;
+  X.save();
+  X.globalAlpha = backPulse;
+  X.textAlign = 'center';
+  X.fillStyle = '#88aaff';
+  X.font = `${subSize}px Courier New`;
+  X.fillText('[ PRESS SPACE TO RETURN ]', cx, H - subSize * 1.5);
+  X.restore();
 
   requestAnimationFrame(draw);
 }

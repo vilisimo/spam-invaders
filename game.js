@@ -100,6 +100,7 @@ let keys = {};
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
   if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
+  if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
   if (state === 'over' && enteringName) {
     if (e.key === 'Backspace') nameInput = nameInput.slice(0, -1);
     else if (e.key === 'Enter' && nameInput.length > 0) {
@@ -295,6 +296,9 @@ function draw() {
     X.globalAlpha = pulse;
     X.fillText('[ PRESS SPACE TO START ]', W/2, 458);
     X.globalAlpha = 1;
+
+    X.fillStyle = '#ffcc66'; X.font = '16px Courier New';
+    X.fillText('[ PRESS L FOR LEADERBOARD ]', W/2, 490);
 
     // Sample envelopes
     drawEnvelope(W/2 - 200, 530, 72, 42, '#4a2020', '#cc6644', -0.06);
