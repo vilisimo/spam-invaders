@@ -99,6 +99,7 @@ function spawnParticles(x, y, color, count) {
 let keys = {};
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
+  keys[e.code] = true;
   if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
   if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
   if (state === 'over' && enteringName) {
@@ -115,7 +116,7 @@ document.addEventListener('keydown', e => {
   }
   if (state === 'leaderboard' && e.key === ' ') state = 'menu';
 });
-document.addEventListener('keyup', e => keys[e.key] = false);
+document.addEventListener('keyup', e => { keys[e.key] = false; keys[e.code] = false; });
 
 function advanceLevel() {
   emailsHandled++;
@@ -143,8 +144,8 @@ function update(dt) {
     spawnTimer = params.interval + (Math.random() - 0.5) * params.interval * 0.4;
   }
 
-  if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-  if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+  if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+  if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
   player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
 
   if (keys[' '] && Date.now() - lastShot > shootCooldown) {
