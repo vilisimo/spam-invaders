@@ -262,10 +262,11 @@ document.addEventListener('keydown', e => {
       emailInput = emailInput.slice(0, -1);
     } else if (e.key === 'Enter') {
       if (isValidEmail(emailInput)) {
-        const existing = leaderboard.find(e => e.email === emailInput);
+        const email = emailInput.toLowerCase();
+        const existing = leaderboard.find(e => e.email === email);
         if (!existing || score > existing.score) {
-          leaderboard = leaderboard.filter(e => e.email !== emailInput);
-          leaderboard.push({ email: emailInput, score, level });
+          leaderboard = leaderboard.filter(e => e.email !== email);
+          leaderboard.push({ email, score, level });
           leaderboard.sort((a, b) => b.score - a.score);
           leaderboard = leaderboard.slice(0, 10);
           localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
