@@ -19,7 +19,7 @@ let comboCount = 0, comboTimer = 0;
 let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
 let nameInput = '', enteringName = false;
 let flashMsg = '', flashTimer = 0;
-let starField = [];
+let mailField = [];
 let emailsHandled = 0;
 let spawnTimer = 0;
 let levelTransition = 0;
@@ -43,7 +43,16 @@ const VIP = [
   { name: "Yaniv Even-Haim", label: "⭐ From: Yaniv E-H" }
 ];
 
-for (let i = 0; i < 80; i++) starField.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 1.5 + 0.5, sp: Math.random() * 0.3 + 0.1 });
+const MAIL_KINDS = ['env', 'at', 'plane'];
+for (let i = 0; i < 28; i++) mailField.push({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  s: Math.random() * 0.6 + 0.7,
+  sp: Math.random() * 0.25 + 0.08,
+  rot: (Math.random() - 0.5) * 0.6,
+  kind: MAIL_KINDS[Math.floor(Math.random() * MAIL_KINDS.length)],
+  phase: Math.random() * Math.PI * 2
+});
 
 function getLevelParams() {
   let spd = 2.5 + (level - 1) * 0.6;
@@ -249,7 +258,7 @@ function update(dt) {
   });
 
   particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0; });
-  starField.forEach(s => { s.y += s.sp; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } });
+  mailField.forEach(m => { m.y += m.sp; if (m.y > H + 20) { m.y = -20; m.x = Math.random() * W; } });
 
   if (lives <= 0) { state = 'over'; enteringName = true; nameInput = ''; }
 }
@@ -270,14 +279,82 @@ function drawEnvelope(x, y, w, h, color, borderColor, rot) {
   X.restore();
 }
 
+function drawBgEnvelope(x, y, s, rot) {
+  let w = 28 * s, h = 18 * s;
+  X.save();
+  X.translate(x, y);
+  X.rotate(rot);
+  X.strokeStyle = 'rgba(180,210,255,0.18)';
+  X.lineWidth = 1.2;
+  X.strokeRect(-w/2, -h/2, w, h);
+  X.beginPath();
+  X.moveTo(-w/2, -h/2); X.lineTo(0, h * 0.15); X.lineTo(w/2, -h/2);
+  X.stroke();
+  X.restore();
+}
+
+function drawBgAt(x, y, s, phase) {
+  X.save();
+  X.translate(x, y);
+  X.fillStyle = `rgba(170,200,255,${0.12 + Math.sin(phase) * 0.05})`;
+  X.font = `${Math.floor(20 * s)}px Courier New`;
+  X.textAlign = 'center';
+  X.fillText('@', 0, 0);
+  X.restore();
+}
+
+function drawBgPlane(x, y, s, phase) {
+  X.save();
+  X.translate(x, y);
+  X.rotate(-0.45 + Math.sin(phase) * 0.05);
+  X.strokeStyle = 'rgba(190,215,255,0.22)';
+  X.lineWidth = 1.3;
+  X.lineJoin = 'round';
+  const sz = 15 * s;
+  X.beginPath();
+  X.moveTo(sz, 0);
+  X.lineTo(-sz, -sz * 0.5);
+  X.lineTo(-sz * 0.25, 0);
+  X.lineTo(-sz * 0.6, sz * 0.45);
+  X.closePath();
+  X.stroke();
+  X.beginPath();
+  X.moveTo(sz, 0);
+  X.lineTo(-sz * 0.25, 0);
+  X.stroke();
+  X.restore();
+}
+
+function drawAirmailBorder() {
+  const stripe = 10;
+  for (let i = 0; i < W + H; i += stripe * 2) {
+    X.fillStyle = 'rgba(210,60,80,0.10)';
+    X.fillRect(i, 0, stripe, 6);
+    X.fillRect(i - H, H - 6, stripe, 6);
+    X.fillStyle = 'rgba(70,110,200,0.10)';
+    X.fillRect(i + stripe, 0, stripe, 6);
+    X.fillRect(i - H + stripe, H - 6, stripe, 6);
+  }
+}
+
 function draw() {
   let grad = X.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0a0a2e'); grad.addColorStop(1, '#1a0a3e');
+  grad.addColorStop(0, '#0e1a3a'); grad.addColorStop(1, '#1a2750');
   X.fillStyle = grad; X.fillRect(0, 0, W, H);
 
-  starField.forEach(s => {
-    X.fillStyle = `rgba(255,255,255,${0.3 + Math.sin(Date.now() * 0.001 + s.x) * 0.2})`;
-    X.fillRect(s.x, s.y, s.s, s.s);
+  X.strokeStyle = 'rgba(255,255,255,0.025)';
+  X.lineWidth = 1;
+  for (let y = 0; y < H; y += 24) {
+    X.beginPath(); X.moveTo(0, y); X.lineTo(W, y); X.stroke();
+  }
+
+  drawAirmailBorder();
+
+  mailField.forEach(m => {
+    let phase = Date.now() * 0.0008 + m.phase;
+    if (m.kind === 'env') drawBgEnvelope(m.x, m.y, m.s, m.rot + Math.sin(phase) * 0.05);
+    else if (m.kind === 'at') drawBgAt(m.x, m.y, m.s, phase);
+    else drawBgPlane(m.x, m.y, m.s, phase);
   });
 
   if (state === 'menu') {
