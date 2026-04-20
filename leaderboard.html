@@ -177,7 +177,7 @@ function draw() {
       const glow = 0.04 + Math.sin(now * 0.002 + i) * 0.02;
       X.fillStyle = `rgba(255,204,0,${glow})`;
       X.beginPath();
-      X.roundRect(cx - 320 * scale, y - rowSize * 0.7, 640 * scale, rowH * 0.85, 8 * scale);
+      X.roundRect(cx - 360 * scale, y - rowSize * 0.7, 720 * scale, rowH * 0.85, 8 * scale);
       X.fill();
     }
 
@@ -185,12 +185,12 @@ function draw() {
     X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
     X.textAlign = 'left';
 
-    const rowX = cx - 300 * scale;
+    const rowX = cx - 340 * scale;
     const rank = `${medal} ${(i + 1 + '').padStart(2)}.`;
-    const name = entry.name.padEnd(12);
+    const who = entry.email.padEnd(28);
     const score = `${(entry.score + '').padStart(6)} pts`;
     const lvl = `Lv.${entry.level}`;
-    X.fillText(`${rank} ${name} ${score}  ${lvl}`, rowX, y);
+    X.fillText(`${rank} ${who} ${score}  ${lvl}`, rowX, y);
   });
 
   }

@@ -103,7 +103,8 @@ let player, bullets, emails, particles;
 let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
 let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
-let nameInput = '', enteringName = false;
+let emailInput = '', enteringEmail = false;
+const isValidEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const gameOverMessages = [
   'PRINCE SUCCESSFULLY TRANSFERRED FUNDS',
   "YOU'VE GOT MAIL (ALL OF IT)",
@@ -218,16 +219,21 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
   if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
-  if (state === 'over' && enteringName) {
-    if (e.key === 'Backspace') nameInput = nameInput.slice(0, -1);
-    else if (e.key === 'Enter' && nameInput.length > 0) {
-      leaderboard.push({ name: nameInput, score, level });
-      leaderboard.sort((a, b) => b.score - a.score);
-      leaderboard = leaderboard.slice(0, 10);
-      localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
-      enteringName = false;
-      state = 'leaderboard';
-    } else if (e.key.length === 1 && nameInput.length < 12) nameInput += e.key;
+  if (state === 'over' && enteringEmail) {
+    if (e.key === 'Backspace') {
+      emailInput = emailInput.slice(0, -1);
+    } else if (e.key === 'Enter') {
+      if (isValidEmail(emailInput)) {
+        leaderboard.push({ email: emailInput, score, level });
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, 10);
+        localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
+        enteringEmail = false;
+        state = 'leaderboard';
+      }
+    } else if (e.key.length === 1 && emailInput.length < 40) {
+      emailInput += e.key;
+    }
     e.preventDefault();
   }
   if (state === 'leaderboard' && e.key === ' ') state = 'menu';
@@ -373,7 +379,7 @@ function update(dt) {
   mailField.forEach(m => { m.y += m.sp; if (m.y > H + 20) { m.y = -20; m.x = Math.random() * W; } });
 
   if (lives <= 0) {
-    state = 'over'; enteringName = true; nameInput = '';
+    state = 'over'; enteringEmail = true; emailInput = '';
     gameOverMessage = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
     sfx.gameOver();
   }
@@ -725,13 +731,37 @@ function draw() {
     X.fillText(`Final Score: ${score}`, W/2, 230);
     X.fillText(`Reached Level: ${level}`, W/2, 265);
 
-    if (enteringName) {
+    if (enteringEmail) {
+      const blink = Date.now() % 1000 < 500;
+      const emailValid = isValidEmail(emailInput);
+      const fieldX = W/2 - 200;
+      const fieldW = 400;
+      const emailColor = emailValid ? '#66ff99' : '#ffcc33';
+
+      X.textAlign = 'center';
       X.fillStyle = '#aaccff'; X.font = '18px Courier New';
-      X.fillText('Enter your name for the leaderboard:', W/2, 330);
-      X.fillStyle = '#fff'; X.font = 'bold 28px Courier New';
-      X.fillText(nameInput + (Date.now() % 1000 < 500 ? '▌' : ''), W/2, 375);
-      X.fillStyle = '#888'; X.font = '14px Courier New';
-      X.fillText('Press ENTER to submit', W/2, 410);
+      X.fillText('Save your score to the leaderboard:', W/2, 320);
+
+      X.textAlign = 'left';
+      X.fillStyle = emailColor; X.font = 'bold 16px Courier New';
+      X.fillText('✱  EMAIL REQUIRED', fieldX, 360);
+      X.strokeStyle = emailColor;
+      X.lineWidth = 2;
+      X.strokeRect(fieldX, 370, fieldW, 40);
+      X.fillStyle = '#ffffff'; X.font = 'bold 22px Courier New';
+      X.fillText(emailInput + (blink ? '▌' : ''), fieldX + 10, 398);
+
+      X.textAlign = 'center';
+      if (emailInput.length === 0) {
+        X.fillStyle = '#ffaa44'; X.font = 'bold 14px Courier New';
+        X.fillText('⚠  Enter your email to save your score', W/2, 432);
+      } else if (!emailValid) {
+        X.fillStyle = '#ff6666'; X.font = 'bold 14px Courier New';
+        X.fillText('⚠  Please enter a valid email (e.g. you@wix.com)', W/2, 432);
+      } else {
+        X.fillStyle = '#66ff99'; X.font = 'bold 14px Courier New';
+        X.fillText('✓  Press ENTER to submit', W/2, 432);
+      }
     }
   }
 
@@ -747,7 +777,7 @@ function draw() {
       X.fillStyle = i < 3 ? '#ffdd66' : '#aaaacc';
       X.font = `${i < 3 ? 'bold ' : ''}18px Courier New`;
       X.textAlign = 'left';
-      X.fillText(`${medal} ${(i+1+'').padStart(2)}. ${entry.name.padEnd(12)} ${(entry.score+'').padStart(6)}pts  Lv.${entry.level}`, W/2 - 230, y);
+      X.fillText(`${medal} ${(i+1+'').padStart(2)}. ${entry.email.padEnd(28)} ${(entry.score+'').padStart(6)}pts  Lv.${entry.level}`, W/2 - 320, y);
     });
 
     if (leaderboard.length === 0) {
