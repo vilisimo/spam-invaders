@@ -97,7 +97,12 @@ function fitCanvas() {
 fitCanvas();
 window.addEventListener('resize', fitCanvas);
 
-let state = 'menu';
+const BOOTH_API_KEY = window.BOOTH_API_KEY;
+const SUBMIT_SCORES_URL = 'https://wix-conf-vilnius.base44.app/api/functions/submitScores';
+
+let state = BOOTH_API_KEY ? 'menu' : 'error';
+let submitStatus = null;
+let submitMessage = '';
 let score = 0, lives = 3, level = 1;
 let player, bullets, emails, particles;
 let lastShot = 0, shootCooldown = 280;
@@ -173,6 +178,7 @@ function initGame() {
   comboCount = 0; comboTimer = 0;
   emailsHandled = 0; levelTransition = 0;
   specialSpawned = false;
+  submitStatus = null; submitMessage = '';
   player = { x: W / 2, y: H - 45, w: 70, h: 30, speed: 5.5 };
   bullets = []; emails = []; particles = [];
   spawnTimer = 0;
@@ -204,6 +210,22 @@ function spawnEmail() {
   });
 }
 
+function submitScores() {
+  submitStatus = 'pending';
+  submitMessage = 'Submitting scores…';
+  fetch(SUBMIT_SCORES_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: BOOTH_API_KEY,
+      scores: leaderboard.map(e => e.email)
+    })
+  })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(() => { submitStatus = 'success'; submitMessage = '✓ Scores submitted to leaderboard'; })
+    .catch(err => { submitStatus = 'error'; submitMessage = '✗ Score submission failed: ' + err.message; });
+}
+
 function spawnParticles(x, y, color, count) {
   for (let i = 0; i < count; i++) {
     particles.push({
@@ -231,6 +253,7 @@ document.addEventListener('keydown', e => {
           leaderboard.sort((a, b) => b.score - a.score);
           leaderboard = leaderboard.slice(0, 10);
           localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
+          submitScores();
         }
         enteringEmail = false;
         state = 'leaderboard';
@@ -386,6 +409,7 @@ function update(dt) {
     state = 'over'; enteringEmail = true; emailInput = '';
     gameOverMessage = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
     sfx.gameOver();
+    submitScores();
   }
 }
 
@@ -467,6 +491,21 @@ function draw() {
   let grad = X.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#0e1a3a'); grad.addColorStop(1, '#1a2750');
   X.fillStyle = grad; X.fillRect(0, 0, W, H);
+
+  if (state === 'error') {
+    X.textAlign = 'center';
+    X.fillStyle = '#ff4444'; X.font = 'bold 36px Courier New';
+    X.fillText('⚠ CONFIGURATION ERROR', W/2, H/2 - 80);
+    X.fillStyle = '#ffcc66'; X.font = 'bold 20px Courier New';
+    X.fillText('BOOTH_API_KEY is not set', W/2, H/2 - 30);
+    X.fillStyle = '#aaccff'; X.font = '16px Courier New';
+    X.fillText('Create config.js next to index.html and set', W/2, H/2 + 10);
+    X.fillStyle = '#ffffff'; X.font = 'bold 16px Courier New';
+    X.fillText("window.BOOTH_API_KEY = 'booth_...';", W/2, H/2 + 40);
+    X.fillStyle = '#88aaff'; X.font = '14px Courier New';
+    X.fillText('See config.example.js for a template.', W/2, H/2 + 80);
+    return;
+  }
 
   X.strokeStyle = 'rgba(255,255,255,0.025)';
   X.lineWidth = 1;
@@ -766,6 +805,15 @@ function draw() {
         X.fillStyle = '#66ff99'; X.font = 'bold 14px Courier New';
         X.fillText('✓  Press ENTER to submit', W/2, 432);
       }
+    }
+
+    if (submitStatus) {
+      X.textAlign = 'center';
+      X.font = 'bold 14px Courier New';
+      X.fillStyle = submitStatus === 'success' ? '#66ff99'
+        : submitStatus === 'error' ? '#ff6666'
+        : '#aaccff';
+      X.fillText(submitMessage, W/2, H - 40);
     }
   }
 
