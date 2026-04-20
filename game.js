@@ -104,6 +104,25 @@ let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
 let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
 let nameInput = '', enteringName = false;
+const gameOverMessages = [
+  'PRINCE SUCCESSFULLY TRANSFERRED FUNDS',
+  "YOU'VE GOT MAIL (ALL OF IT)",
+  'MAILBOX FULL OF REGRET',
+  'PRINCE KEPT THE $47,000,000',
+  'HOT SINGLES OVERRAN YOUR INBOX',
+  'FINAL WARRANTY NOTICE (FINAL)',
+  'ONE WEIRD TRICK: YOU DIED',
+  'BURIED UNDER V1AGR4 SHIPMENTS',
+  'FAKE IRS COLLECTED YOUR INBOX',
+  '47 VIRUSES INSTALLED',
+  'INBOX ENCRYPTED. SEND 0.5 BTC.',
+  'AUTO-SUBSCRIBED TO 47 NEWSLETTERS',
+  'WIDOW SUCCESSFULLY WIRED HER FORTUNE',
+  'LONELY MILFS ESTABLISHED UPLINK',
+  'BLUE PILLS AUTO-REORDERED MONTHLY',
+  'CREDENTIALS SUCCESSFULLY PHISHED',
+];
+let gameOverMessage = gameOverMessages[0];
 let flashMsg = '', flashTimer = 0;
 let mailField = [];
 let emailsHandled = 0;
@@ -353,7 +372,11 @@ function update(dt) {
   particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0; });
   mailField.forEach(m => { m.y += m.sp; if (m.y > H + 20) { m.y = -20; m.x = Math.random() * W; } });
 
-  if (lives <= 0) { state = 'over'; enteringName = true; nameInput = ''; sfx.gameOver(); }
+  if (lives <= 0) {
+    state = 'over'; enteringName = true; nameInput = '';
+    gameOverMessage = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
+    sfx.gameOver();
+  }
 }
 
 function drawEnvelope(x, y, w, h, color, borderColor, rot) {
@@ -696,8 +719,8 @@ function draw() {
   if (state === 'over') {
     X.fillStyle = 'rgba(0,0,0,0.75)'; X.fillRect(0, 0, W, H);
     X.textAlign = 'center';
-    X.fillStyle = '#ff4444'; X.font = 'bold 44px Courier New';
-    X.fillText('INBOX BREACHED!', W/2, 170);
+    X.fillStyle = '#ff4444'; X.font = 'bold 28px Courier New';
+    X.fillText(gameOverMessage, W/2, 170);
     X.fillStyle = '#fff'; X.font = '22px Courier New';
     X.fillText(`Final Score: ${score}`, W/2, 230);
     X.fillText(`Reached Level: ${level}`, W/2, 265);
