@@ -224,10 +224,14 @@ document.addEventListener('keydown', e => {
       emailInput = emailInput.slice(0, -1);
     } else if (e.key === 'Enter') {
       if (isValidEmail(emailInput)) {
-        leaderboard.push({ email: emailInput, score, level });
-        leaderboard.sort((a, b) => b.score - a.score);
-        leaderboard = leaderboard.slice(0, 10);
-        localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
+        const existing = leaderboard.find(e => e.email === emailInput);
+        if (!existing || score > existing.score) {
+          leaderboard = leaderboard.filter(e => e.email !== emailInput);
+          leaderboard.push({ email: emailInput, score, level });
+          leaderboard.sort((a, b) => b.score - a.score);
+          leaderboard = leaderboard.slice(0, 10);
+          localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
+        }
         enteringEmail = false;
         state = 'leaderboard';
       }
