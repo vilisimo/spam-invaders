@@ -24,6 +24,7 @@ let emailsHandled = 0;
 let spawnTimer = 0;
 let levelTransition = 0;
 let specialSpawned = false;
+let moveHoldTime = 0, moveHoldDir = 0;
 
 const SPAM = [
   "🎰 YOU WON $1M!", "💊 Buy Pills Now", "🔥 Hot Singles!", "👑 Nigerian Prince",
@@ -60,6 +61,7 @@ function initGame() {
   player = { x: W / 2, y: H - 45, w: 70, h: 30, speed: 5.5 };
   bullets = []; emails = []; particles = [];
   spawnTimer = 0;
+  moveHoldTime = 0; moveHoldDir = 0;
 }
 
 function spawnEmail() {
@@ -144,8 +146,14 @@ function update(dt) {
     spawnTimer = params.interval + (Math.random() - 0.5) * params.interval * 0.4;
   }
 
-  if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
-  if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+  let dir = 0;
+  if (keys['ArrowLeft'] || keys['KeyA']) dir -= 1;
+  if (keys['ArrowRight'] || keys['KeyD']) dir += 1;
+  if (dir !== 0 && dir === moveHoldDir) moveHoldTime += dt;
+  else { moveHoldTime = 0; moveHoldDir = dir; }
+  // Speed boost: ramps from 1x to 2x over 400ms of continuous hold
+  let boost = 1 + Math.min(1, Math.max(0, moveHoldTime - 120) / 400);
+  player.x += dir * player.speed * boost;
   player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
 
   if (keys[' '] && Date.now() - lastShot > shootCooldown) {
