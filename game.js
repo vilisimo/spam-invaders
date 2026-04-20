@@ -369,22 +369,87 @@ function draw() {
       X.shadowBlur = 0;
     });
 
-    // Player
-    X.fillStyle = '#4488ff';
+    // Player - Mailman
+    const px = player.x, py = player.y;
+
+    // Legs
+    X.fillStyle = '#1a2a4a';
+    X.fillRect(px - 13, py + 10, 9, 6);
+    X.fillRect(px + 4, py + 10, 9, 6);
+    // Shoes
+    X.fillStyle = '#0a0a0a';
+    X.fillRect(px - 14, py + 14, 11, 3);
+    X.fillRect(px + 3, py + 14, 11, 3);
+
+    // Body (blue uniform)
+    X.fillStyle = '#2a5db8';
+    X.beginPath(); X.roundRect(px - 18, py - 4, 36, 16, 3); X.fill();
+    X.strokeStyle = '#4a7dd8'; X.lineWidth = 1.5; X.stroke();
+
+    // Arms
+    X.fillStyle = '#2a5db8';
+    X.fillRect(px - 22, py - 2, 6, 13);
+    X.fillRect(px + 16, py - 2, 6, 13);
+    // Hands
+    X.fillStyle = '#f0c8a0';
+    X.beginPath(); X.arc(px - 19, py + 12, 2.5, 0, Math.PI * 2); X.fill();
+    X.beginPath(); X.arc(px + 19, py + 12, 2.5, 0, Math.PI * 2); X.fill();
+
+    // Mail bag strap across chest
+    X.strokeStyle = '#6b4423'; X.lineWidth = 2;
     X.beginPath();
-    X.moveTo(player.x, player.y - 18);
-    X.lineTo(player.x - 35, player.y + 15);
-    X.lineTo(player.x + 35, player.y + 15);
-    X.closePath(); X.fill();
-    X.strokeStyle = '#66aaff'; X.lineWidth = 2; X.stroke();
-    X.fillStyle = '#88ccff';
+    X.moveTo(px - 15, py - 5); X.lineTo(px + 18, py + 10);
+    X.stroke();
+
+    // Mail satchel
+    X.fillStyle = '#a87050';
+    X.beginPath(); X.roundRect(px + 14, py + 3, 16, 13, 2); X.fill();
+    X.strokeStyle = '#6b4423'; X.lineWidth = 1.5; X.stroke();
+    // Envelope peeking out of bag
+    X.fillStyle = '#fff';
+    X.fillRect(px + 17, py + 6, 8, 6);
+    X.strokeStyle = '#888'; X.lineWidth = 0.5; X.strokeRect(px + 17, py + 6, 8, 6);
     X.beginPath();
-    X.moveTo(player.x, player.y - 10);
-    X.lineTo(player.x - 18, player.y + 10);
-    X.lineTo(player.x + 18, player.y + 10);
-    X.closePath(); X.fill();
+    X.moveTo(px + 17, py + 6); X.lineTo(px + 21, py + 9); X.lineTo(px + 25, py + 6);
+    X.stroke();
+
+    // Chest badge (gold)
+    X.fillStyle = '#ffdd44';
+    X.fillRect(px - 14, py - 1, 5, 4);
+    // Buttons
+    X.fillRect(px - 1, py, 2, 2);
+    X.fillRect(px - 1, py + 5, 2, 2);
+
+    // Neck
+    X.fillStyle = '#f0c8a0';
+    X.fillRect(px - 3, py - 8, 6, 5);
+
+    // Head
+    X.fillStyle = '#f0c8a0';
+    X.beginPath(); X.arc(px, py - 12, 7, 0, Math.PI * 2); X.fill();
+    X.strokeStyle = '#b08060'; X.lineWidth = 1; X.stroke();
+    // Eyes
+    X.fillStyle = '#000';
+    X.fillRect(px - 3, py - 13, 1.5, 1.5);
+    X.fillRect(px + 1.5, py - 13, 1.5, 1.5);
+
+    // Cap (postal cap)
+    X.fillStyle = '#1a3a78';
+    X.beginPath(); X.roundRect(px - 10, py - 22, 20, 8, 3); X.fill();
+    X.strokeStyle = '#3a5a98'; X.lineWidth = 1.5; X.stroke();
+    // Brim
+    X.fillStyle = '#0a1a3a';
+    X.beginPath(); X.roundRect(px - 12, py - 16, 24, 3, 1); X.fill();
+    // Envelope emblem on cap
+    X.fillStyle = '#ffdd44';
+    X.fillRect(px - 3, py - 20, 6, 4);
+    X.strokeStyle = '#8a6a00'; X.lineWidth = 0.5; X.strokeRect(px - 3, py - 20, 6, 4);
+    X.beginPath();
+    X.moveTo(px - 3, py - 20); X.lineTo(px, py - 18); X.lineTo(px + 3, py - 20);
+    X.stroke();
+
     X.fillStyle = '#aaddff'; X.font = '9px Courier New'; X.textAlign = 'center';
-    X.fillText('FIREWALL', player.x, player.y + 28);
+    X.fillText('POSTAL', px, py + 28);
 
     // Particles
     particles.forEach(p => {
