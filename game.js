@@ -141,6 +141,25 @@ const gameOverMessages = [
   'TOTALLY-LEGIT-INVOICE.PDF.EXE OPENED',
   'DNA TEST REVEALED NEW RELATIVES',
 ];
+const bonusLifeMessages = [
+  '⭐ {name} granted you RSUs! +1 Life',
+  '⭐ {name} approved your promotion! +1 Life',
+  '⭐ {name} vested you early! +1 Life',
+  '⭐ WIX stock up 3%! +1 Life',
+  '⭐ {name} mentioned you in all-hands! +1 Life',
+  '⭐ Board approved bonus lives! +1 Life',
+  '⭐ {name} added you to the cap table! +1 Life',
+  '⭐ Exercise window extended! +1 Life',
+  '⭐ SPF/DKIM/DMARC all passed! +1 Life',
+  '⭐ Spam filter bounty: +1 Life',
+  '⭐ Abuse@ team sends regards! +1 Life',
+  '⭐ Honeypot caught 47 scammers! +1 Life',
+  '⭐ {name} liked your Slack message! +1 Life',
+  '⭐ {name} reposted your demo! +1 Life',
+  '⭐ ESPP window opened! +1 Life',
+  '⭐ Refresh grant landed! +1 Life',
+  '⭐ Analyst upgraded WIX to BUY! +1 Life',
+];
 let gameOverMessage = gameOverMessages[0];
 let flashMsg = '', flashTimer = 0;
 let mailField = [];
@@ -395,7 +414,7 @@ function update(dt) {
       if (e.vip) {
         lives = Math.min(lives + 1, 5);
         score += 50;
-        flashMsg = `⭐ ${e.vipData.name} says thanks! +1 Life`; flashTimer = 1500;
+        flashMsg = bonusLifeMessages[Math.floor(Math.random() * bonusLifeMessages.length)].replace('{name}', e.vipData.name); flashTimer = 1500;
         spawnParticles(e.x, e.y, '#ffdd44', 20);
       } else if (e.legit) {
         // Legit caught by mailman — delivered
