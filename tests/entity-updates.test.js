@@ -77,6 +77,29 @@ test('resolveBulletEmailCollisionsInPlace preserves an explicit clear performed 
   assert.deepEqual(bullets.map(b => b.id), ['after']);
 });
 
+test('resolveBulletEmailCollisionsInPlace preserves a clear when the hit email is not first', () => {
+  const bullets = [{ id: 'hit', x: 30, y: 30 }, { id: 'after', x: 50, y: 50 }];
+  const emails = [
+    { id: 'older', x: 10, y: 10 },
+    { id: 'trigger-clear', x: 30, y: 30 },
+    { id: 'newer', x: 50, y: 50 }
+  ];
+
+  resolveBulletEmailCollisionsInPlace({
+    bullets,
+    emails,
+    collides(bullet, email) {
+      return bullet.x === email.x && bullet.y === email.y;
+    },
+    onCollision() {
+      emails.length = 0;
+    }
+  });
+
+  assert.deepEqual(emails, []);
+  assert.deepEqual(bullets.map(b => b.id), ['after']);
+});
+
 test('resolveEmailsInPlace removes handled emails and preserves survivor order', () => {
   const emails = [
     { id: 'hit' },
