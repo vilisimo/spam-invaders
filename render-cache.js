@@ -78,5 +78,45 @@
     };
   }
 
-  return { createLayerCache };
+  function createSpriteCache({ createSurface = defaultCreateSurface } = {}) {
+    const sprites = new Map();
+
+    return {
+      getSprite(name, width, height, paint) {
+        let sprite = sprites.get(name);
+
+        if (!sprite || sprite.width !== width || sprite.height !== height) {
+          const surface = createSurface(width, height);
+          surface.width = width;
+          surface.height = height;
+
+          const ctx = surface.getContext('2d');
+          if (!ctx) throw new Error(`Could not create a 2d context for sprite "${name}"`);
+
+          sprite = { surface, ctx, width, height, dirty: true };
+          sprites.set(name, sprite);
+        }
+
+        if (sprite.dirty) {
+          sprite.ctx.clearRect(0, 0, sprite.width, sprite.height);
+          paint(sprite.ctx, sprite.surface);
+          sprite.dirty = false;
+        }
+
+        return sprite.surface;
+      },
+
+      invalidate(name) {
+        if (typeof name === 'undefined') {
+          sprites.forEach(sprite => { sprite.dirty = true; });
+          return;
+        }
+
+        const sprite = sprites.get(name);
+        if (sprite) sprite.dirty = true;
+      }
+    };
+  }
+
+  return { createLayerCache, createSpriteCache };
 });
