@@ -25,10 +25,14 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
+const apiKey = localStorage.getItem('spamInvadersApiKey') || '';
+const leaderboardStorageKey = apiKey ? `spamInvadersLeaderboard:${apiKey}` : null;
+let leaderboard = leaderboardStorageKey
+  ? JSON.parse(localStorage.getItem(leaderboardStorageKey) || '[]')
+  : [];
 
 window.addEventListener('storage', e => {
-  if (e.key === 'spamInvadersLeaderboard') {
+  if (leaderboardStorageKey && e.key === leaderboardStorageKey) {
     leaderboard = JSON.parse(e.newValue || '[]');
   }
 });

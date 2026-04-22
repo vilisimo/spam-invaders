@@ -99,6 +99,10 @@ window.addEventListener('resize', fitCanvas);
 
 const SUBMIT_SCORES_URL = 'https://wix-conf-vilnius.base44.app/api/functions/submitScores';
 const isValidApiKey = v => /^booth_[A-Za-z0-9]+$/.test(v);
+const leaderboardKey = apiKey => `spamInvadersLeaderboard:${apiKey}`;
+const loadLeaderboard = apiKey => apiKey
+  ? JSON.parse(localStorage.getItem(leaderboardKey(apiKey)) || '[]')
+  : [];
 
 const storedApiKey = localStorage.getItem('spamInvadersApiKey') || '';
 let boothApiKey = isValidApiKey(storedApiKey) ? storedApiKey : '';
@@ -110,7 +114,7 @@ let score = 0, lives = 3, level = 1;
 let player, bullets, emails, particles;
 let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
-let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
+let leaderboard = loadLeaderboard(boothApiKey);
 let emailInput = '', enteringEmail = false;
 const isValidEmail = v => /^[^\s@]+@wix\.com$/i.test(v);
 const gameOverMessages = [
@@ -279,6 +283,7 @@ document.addEventListener('keydown', e => {
       if (isValidApiKey(apiKeyInput)) {
         boothApiKey = apiKeyInput;
         localStorage.setItem('spamInvadersApiKey', boothApiKey);
+        leaderboard = loadLeaderboard(boothApiKey);
         state = 'menu';
       }
     } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && apiKeyInput.length < 80) {
@@ -301,7 +306,7 @@ document.addEventListener('keydown', e => {
           leaderboard.push({ email, score, level });
           leaderboard.sort((a, b) => b.score - a.score);
           leaderboard = leaderboard.slice(0, 10);
-          localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
+          localStorage.setItem(leaderboardKey(boothApiKey), JSON.stringify(leaderboard));
         }
         submitScores();
         enteringEmail = false;
