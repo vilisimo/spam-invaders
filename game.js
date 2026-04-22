@@ -300,8 +300,8 @@ document.addEventListener('keydown', e => {
           leaderboard.sort((a, b) => b.score - a.score);
           leaderboard = leaderboard.slice(0, 10);
           localStorage.setItem('spamInvadersLeaderboard', JSON.stringify(leaderboard));
-          submitScores();
         }
+        submitScores();
         enteringEmail = false;
         state = 'leaderboard';
       }
@@ -462,7 +462,6 @@ function update(dt) {
     state = 'over'; enteringEmail = true; emailInput = '';
     gameOverMessage = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
     sfx.gameOver();
-    submitScores();
   }
 }
 
@@ -872,10 +871,10 @@ function draw() {
       X.textAlign = 'center';
       if (emailInput.length === 0) {
         X.fillStyle = '#ffaa44'; X.font = 'bold 14px Courier New';
-        X.fillText('⚠  Enter your email to save your score', W/2, 432);
+        X.fillText('⚠  Enter your @wix.com email to save your score', W/2, 432);
       } else if (!emailValid) {
         X.fillStyle = '#ff6666'; X.font = 'bold 14px Courier New';
-        X.fillText('⚠  Please enter a valid email (e.g. you@wix.com)', W/2, 432);
+        X.fillText('⚠  Email must end in @wix.com (e.g. you@wix.com)', W/2, 432);
       } else {
         X.fillStyle = '#66ff99'; X.font = 'bold 14px Courier New';
         X.fillText('✓  Press ENTER to submit', W/2, 432);
