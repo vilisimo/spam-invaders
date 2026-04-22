@@ -29,11 +29,11 @@
 
       for (let emailIndex = emails.length - 1; emailIndex >= 0; emailIndex--) {
         const email = emails[emailIndex];
-        if (email === null) continue;
+        if (email == null) continue;
         if (!collides(bullet, email)) continue;
 
         onCollision(bullet, email, emailIndex);
-        emails[emailIndex] = null;
+        if (emailIndex < emails.length) emails[emailIndex] = null;
         hit = true;
         break;
       }
@@ -46,7 +46,7 @@
     let emailWrite = 0;
     for (let emailRead = 0; emailRead < emails.length; emailRead++) {
       const email = emails[emailRead];
-      if (email !== null) emails[emailWrite++] = email;
+      if (email != null) emails[emailWrite++] = email;
     }
     emails.length = emailWrite;
 
