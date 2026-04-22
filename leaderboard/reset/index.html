@@ -34,7 +34,10 @@ function goBack() {
 }
 
 function confirmReset() {
-  localStorage.removeItem('spamInvadersLeaderboard');
+  const apiKey = localStorage.getItem('spamInvadersApiKey') || '';
+  if (apiKey) {
+    localStorage.removeItem(`spamInvadersLeaderboard:${apiKey}`);
+  }
   done = true;
   message = 'LEADERBOARD RESET';
   setTimeout(goBack, 1200);
