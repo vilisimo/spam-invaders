@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Spam Invaders — Change API Key</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0e1a3a; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="g"></canvas>
+<script>
+const C = document.getElementById('g');
+const X = C.getContext('2d');
+let W, H;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  C.width = W;
+  C.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const isValidApiKey = v => /^booth_[A-Za-z0-9]+$/.test(v);
+const storedApiKey = localStorage.getItem('spamInvadersApiKey') || '';
+let apiKeyInput = '';
+let done = false;
+let message = '';
+
+function goBack() {
+  window.location.href = '../index.html';
+}
+
+function save() {
+  if (!isValidApiKey(apiKeyInput)) return;
+  localStorage.setItem('spamInvadersApiKey', apiKeyInput);
+  done = true;
+  message = 'API KEY UPDATED';
+  setTimeout(goBack, 1000);
+}
+
+window.addEventListener('keydown', e => {
+  if (done) return;
+  if (e.key === 'Escape') { e.preventDefault(); goBack(); return; }
+  if (e.key === 'Backspace') {
+    apiKeyInput = apiKeyInput.slice(0, -1);
+  } else if (e.key === 'Enter') {
+    save();
+  } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && apiKeyInput.length < 80) {
+    apiKeyInput += e.key;
+  }
+  if (e.key !== 'v' || !(e.metaKey || e.ctrlKey)) e.preventDefault();
+});
+
+document.addEventListener('paste', e => {
+  if (done) return;
+  const text = (e.clipboardData || window['clipboardData']).getData('text').trim();
+  apiKeyInput = (apiKeyInput + text).slice(0, 80);
+  e.preventDefault();
+});
+
+const MAIL_KINDS = ['env', 'at', 'plane'];
+const mailField = [];
+for (let i = 0; i < 36; i++) {
+  mailField.push({
+    x: Math.random(),
+    y: Math.random(),
+    s: Math.random() * 0.7 + 0.8,
+    sp: Math.random() * 0.2 + 0.05,
+    rot: (Math.random() - 0.5) * 0.6,
+    kind: MAIL_KINDS[Math.floor(Math.random() * MAIL_KINDS.length)],
+    phase: Math.random() * Math.PI * 2
+  });
+}
+
+function drawBgEnvelope(x, y, s, rot) {
+  const w = 28 * s, h = 18 * s;
+  X.save();
+  X.translate(x, y);
+  X.rotate(rot);
+  X.strokeStyle = 'rgba(180,210,255,0.18)';
+  X.lineWidth = 1.2;
+  X.strokeRect(-w/2, -h/2, w, h);
+  X.beginPath();
+  X.moveTo(-w/2, -h/2); X.lineTo(0, h * 0.15); X.lineTo(w/2, -h/2);
+  X.stroke();
+  X.restore();
+}
+
+function drawBgAt(x, y, s, phase) {
+  X.save();
+  X.translate(x, y);
+  X.fillStyle = `rgba(170,200,255,${0.12 + Math.sin(phase) * 0.05})`;
+  X.font = `${Math.floor(22 * s)}px Courier New`;
+  X.textAlign = 'center';
+  X.fillText('@', 0, 0);
+  X.restore();
+}
+
+function drawBgPlane(x, y, s, phase) {
+  X.save();
+  X.translate(x, y);
+  X.rotate(-0.45 + Math.sin(phase) * 0.05);
+  X.strokeStyle = 'rgba(190,215,255,0.22)';
+  X.lineWidth = 1.3;
+  X.lineJoin = 'round';
+  const sz = 16 * s;
+  X.beginPath();
+  X.moveTo(sz, 0);
+  X.lineTo(-sz, -sz * 0.5);
+  X.lineTo(-sz * 0.25, 0);
+  X.lineTo(-sz * 0.6, sz * 0.45);
+  X.closePath();
+  X.stroke();
+  X.beginPath();
+  X.moveTo(sz, 0);
+  X.lineTo(-sz * 0.25, 0);
+  X.stroke();
+  X.restore();
+}
+
+function drawAirmailBorder() {
+  const stripe = 10;
+  for (let i = 0; i < W + H; i += stripe * 2) {
+    X.fillStyle = 'rgba(210,60,80,0.10)';
+    X.fillRect(i, 0, stripe, 6);
+    X.fillRect(i - H, H - 6, stripe, 6);
+    X.fillStyle = 'rgba(70,110,200,0.10)';
+    X.fillRect(i + stripe, 0, stripe, 6);
+    X.fillRect(i - H + stripe, H - 6, stripe, 6);
+  }
+}
+
+function draw() {
+  const grad = X.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0e1a3a');
+  grad.addColorStop(1, '#1a2750');
+  X.fillStyle = grad;
+  X.fillRect(0, 0, W, H);
+
+  const now = Date.now();
+
+  X.strokeStyle = 'rgba(255,255,255,0.025)';
+  X.lineWidth = 1;
+  for (let y = 0; y < H; y += 24) {
+    X.beginPath(); X.moveTo(0, y); X.lineTo(W, y); X.stroke();
+  }
+
+  drawAirmailBorder();
+
+  mailField.forEach(m => {
+    m.y += m.sp * 0.0004;
+    if (m.y > 1.05) { m.y = -0.05; m.x = Math.random(); }
+    const phase = now * 0.0008 + m.phase;
+    const px = m.x * W, py = m.y * H;
+    if (m.kind === 'env') drawBgEnvelope(px, py, m.s, m.rot + Math.sin(phase) * 0.05);
+    else if (m.kind === 'at') drawBgAt(px, py, m.s, phase);
+    else drawBgPlane(px, py, m.s, phase);
+  });
+
+  const cx = W / 2;
+  const scale = Math.min(W / 800, H / 700);
+  const titleSize = Math.round(44 * scale);
+  const promptSize = Math.round(20 * scale);
+  const warnSize = Math.round(16 * scale);
+  const subSize = Math.round(14 * scale);
+
+  const pulse = 0.85 + Math.sin(now * 0.003) * 0.15;
+  X.save();
+  X.globalAlpha = pulse;
+  X.textAlign = 'center';
+  X.fillStyle = '#ffcc44';
+  X.font = `bold ${titleSize}px Courier New`;
+  X.fillText('🔑  CHANGE API KEY  🔑', cx, H * 0.18);
+  X.restore();
+
+  X.textAlign = 'center';
+  X.fillStyle = '#889';
+  X.font = `${subSize}px Courier New`;
+  X.fillText(`Current: ${storedApiKey || '(none set)'}`, cx, H * 0.18 + titleSize * 0.9);
+
+  if (done) {
+    X.fillStyle = '#66ff99';
+    X.font = `bold ${promptSize}px Courier New`;
+    X.fillText(message, cx, H * 0.55);
+    X.fillStyle = '#667799';
+    X.font = `${subSize}px Courier New`;
+    X.fillText('Returning to game…', cx, H * 0.55 + promptSize * 1.5);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  X.fillStyle = '#aaccff';
+  X.font = `${promptSize}px Courier New`;
+  X.fillText('Enter a new booth API key:', cx, H * 0.36);
+
+  const fieldW = Math.min(560 * scale, W - 80);
+  const fieldH = 46 * scale;
+  const fieldX = cx - fieldW / 2;
+  const fieldY = H * 0.42;
+  const keyValid = isValidApiKey(apiKeyInput);
+  const keyColor = keyValid ? '#66ff99' : '#ffcc33';
+
+  X.textAlign = 'left';
+  X.fillStyle = keyColor;
+  X.font = `bold ${warnSize}px Courier New`;
+  X.fillText('🔑  BOOTH API KEY', fieldX, fieldY - 12);
+
+  X.strokeStyle = keyColor;
+  X.lineWidth = 2;
+  X.strokeRect(fieldX, fieldY, fieldW, fieldH);
+
+  const blink = now % 1000 < 500;
+  X.fillStyle = '#ffffff';
+  X.font = `bold ${Math.round(18 * scale)}px Courier New`;
+  X.textBaseline = 'middle';
+  X.fillText(apiKeyInput + (blink ? '▌' : ''), fieldX + 10, fieldY + fieldH / 2);
+  X.textBaseline = 'alphabetic';
+
+  X.textAlign = 'center';
+  if (apiKeyInput.length === 0) {
+    X.fillStyle = '#ffaa44';
+    X.font = `bold ${warnSize}px Courier New`;
+    X.fillText('⚠  Paste or type your key (format: booth_…)', cx, fieldY + fieldH + warnSize * 2);
+  } else if (!keyValid) {
+    X.fillStyle = '#ff6666';
+    X.font = `bold ${warnSize}px Courier New`;
+    X.fillText('⚠  Invalid key format — expected booth_…', cx, fieldY + fieldH + warnSize * 2);
+  } else {
+    X.fillStyle = '#66ff99';
+    X.font = `bold ${warnSize}px Courier New`;
+    X.fillText('✓  Press ENTER to save', cx, fieldY + fieldH + warnSize * 2);
+  }
+
+  X.fillStyle = '#667799';
+  X.font = `${subSize}px Courier New`;
+  X.fillText('ENTER to save    ESC to cancel', cx, H - subSize * 2.5);
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

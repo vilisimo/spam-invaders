@@ -294,6 +294,7 @@ document.addEventListener('keydown', e => {
   }
   if (state === 'menu' && e.key === ' ') { state = 'play'; initGame(); }
   if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
+  if (state === 'menu' && (e.key === 't' || e.key === 'T')) { window.location.href = 'token/index.html'; }
   if (state === 'over' && enteringEmail) {
     if (e.key === 'Backspace') {
       emailInput = emailInput.slice(0, -1);
@@ -630,7 +631,7 @@ function draw() {
     X.globalAlpha = 1;
 
     X.fillStyle = '#ffcc66'; X.font = '16px Courier New';
-    X.fillText('[ PRESS L FOR LEADERBOARD ]', W/2, 490);
+    X.fillText('[ L: LEADERBOARD ]    [ T: CHANGE API KEY ]', W/2, 490);
 
     // Sample envelopes
     drawEnvelope(W/2 - 200, 530, 72, 42, '#4a2020', '#cc6644', -0.06);
