@@ -11,16 +11,19 @@ canvas { display: block; }
 </head>
 <body>
 <canvas id="g"></canvas>
+<script src="render-cache.js"></script>
 <script>
 const C = document.getElementById('g');
 const X = C.getContext('2d');
 let W, H;
+const layerCache = RenderCache.createLayerCache({ width: 1, height: 1 });
 
 function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
   C.width = W;
   C.height = H;
+  layerCache.resize(W, H);
 }
 resize();
 window.addEventListener('resize', resize);
@@ -34,6 +37,7 @@ let leaderboard = leaderboardStorageKey
 window.addEventListener('storage', e => {
   if (leaderboardStorageKey && e.key === leaderboardStorageKey) {
     leaderboard = JSON.parse(e.newValue || '[]');
+    layerCache.invalidate('rows');
   }
 });
 
@@ -103,34 +107,88 @@ function drawBgPlane(x, y, s, phase) {
   X.restore();
 }
 
-function drawAirmailBorder() {
+function drawAirmailBorder(ctx, width, height) {
   const stripe = 10;
-  for (let i = 0; i < W + H; i += stripe * 2) {
-    X.fillStyle = 'rgba(210,60,80,0.10)';
-    X.fillRect(i, 0, stripe, 6);
-    X.fillRect(i - H, H - 6, stripe, 6);
-    X.fillStyle = 'rgba(70,110,200,0.10)';
-    X.fillRect(i + stripe, 0, stripe, 6);
-    X.fillRect(i - H + stripe, H - 6, stripe, 6);
+  for (let i = 0; i < width + height; i += stripe * 2) {
+    ctx.fillStyle = 'rgba(210,60,80,0.10)';
+    ctx.fillRect(i, 0, stripe, 6);
+    ctx.fillRect(i - height, height - 6, stripe, 6);
+    ctx.fillStyle = 'rgba(70,110,200,0.10)';
+    ctx.fillRect(i + stripe, 0, stripe, 6);
+    ctx.fillRect(i - height + stripe, height - 6, stripe, 6);
   }
 }
 
-function draw() {
-  const grad = X.createLinearGradient(0, 0, 0, H);
+function paintBackdrop(ctx) {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#0e1a3a');
   grad.addColorStop(1, '#1a2750');
-  X.fillStyle = grad;
-  X.fillRect(0, 0, W, H);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
 
-  const now = Date.now();
-
-  X.strokeStyle = 'rgba(255,255,255,0.025)';
-  X.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
   for (let y = 0; y < H; y += 24) {
-    X.beginPath(); X.moveTo(0, y); X.lineTo(W, y); X.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
   }
 
-  drawAirmailBorder();
+  drawAirmailBorder(ctx, W, H);
+}
+
+function paintRows(ctx) {
+  const cx = W / 2;
+  const scale = Math.min(W / 800, H / 700);
+  const rowSize = Math.round(28 * scale);
+
+  if (leaderboard.length === 0) {
+    ctx.fillStyle = '#556677';
+    ctx.font = `${rowSize}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.fillText('No scores yet — go play!', cx, H * 0.5);
+    return;
+  }
+
+  const startY = H * 0.22;
+  const rowH = Math.min(rowSize * 2.2, (H * 0.7) / 10);
+  const leftX = cx - 340 * scale;
+  const medalX = leftX;
+  const rankX = leftX + 40 * scale;
+  const emailX = leftX + 100 * scale;
+  const lvlX = cx + 340 * scale;
+  const scoreX = lvlX - 80 * scale;
+
+  leaderboard.forEach((entry, i) => {
+    const y = startY + i * rowH;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const isTop3 = i < 3;
+
+    ctx.fillStyle = isTop3 ? '#ffdd66' : '#aaaacc';
+    ctx.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
+
+    if (medal) {
+      ctx.textAlign = 'center';
+      ctx.font = `${rowSize}px Courier New`;
+      ctx.fillText(medal, medalX + 10 * scale, y);
+      ctx.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
+    }
+
+    ctx.textAlign = 'left';
+    ctx.fillText(`${(i + 1 + '').padStart(2)}.`, rankX, y);
+    ctx.fillText(entry.email, emailX, y);
+
+    ctx.textAlign = 'right';
+    ctx.fillText(`${entry.score} pts`, scoreX, y);
+    ctx.fillText(`Lv.${entry.level}`, lvlX, y);
+  });
+}
+
+function draw() {
+  layerCache.drawLayer(X, 'backdrop', paintBackdrop);
+
+  const now = Date.now();
 
   mailField.forEach(m => {
     m.y += m.sp * 0.0004;
@@ -164,9 +222,7 @@ function draw() {
   X.fillText('SPAM INVADERS', cx, H * 0.12 + titleSize * 0.7);
 
   if (leaderboard.length === 0) {
-    X.fillStyle = '#556677';
-    X.font = `${rowSize}px Courier New`;
-    X.fillText('No scores yet — go play!', cx, H * 0.5);
+    layerCache.drawLayer(X, 'rows', paintRows);
   } else {
 
   const startY = H * 0.22;
@@ -191,27 +247,9 @@ function draw() {
       X.roundRect(cx - 360 * scale, y - rowSize * 0.7, 720 * scale, rowH * 0.85, 8 * scale);
       X.fill();
     }
-
-    X.fillStyle = isTop3 ? '#ffdd66' : '#aaaacc';
-    X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
-
-    if (medal) {
-      X.textAlign = 'center';
-      X.font = `${rowSize}px Courier New`;
-      X.fillText(medal, medalX + 10 * scale, y);
-      X.font = `${isTop3 ? 'bold ' : ''}${rowSize}px Courier New`;
-    }
-
-    X.textAlign = 'left';
-    X.fillText(`${(i + 1 + '').padStart(2)}.`, rankX, y);
-    X.fillText(entry.email, emailX, y);
-
-    X.textAlign = 'right';
-    X.fillText(`${entry.score} pts`, scoreX, y);
-
-    X.textAlign = 'right';
-    X.fillText(`Lv.${entry.level}`, lvlX, y);
   });
+
+  layerCache.drawLayer(X, 'rows', paintRows);
 
   }
 

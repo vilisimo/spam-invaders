@@ -2,6 +2,7 @@ const C = document.getElementById('g');
 const X = C.getContext('2d');
 const W = 800, H = 600;
 C.width = W; C.height = H;
+const layerCache = RenderCache.createLayerCache({ width: W, height: H });
 
 let audioCtx = null;
 function ensureAudio() {
@@ -323,6 +324,7 @@ document.addEventListener('keydown', e => {
           leaderboard.sort((a, b) => b.score - a.score);
           leaderboard = leaderboard.slice(0, 10);
           localStorage.setItem(leaderboardKey(boothApiKey), JSON.stringify(leaderboard));
+          layerCache.invalidate('leaderboardRows');
         }
         submitScores();
         enteringEmail = false;
@@ -489,20 +491,24 @@ function update(dt) {
   }
 }
 
+function drawEnvelopeOn(ctx, x, y, w, h, color, borderColor, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot || 0);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(-w/2, -h/2, w, h, 5); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-w/2, -h/2);
+  ctx.lineTo(0, h * 0.05);
+  ctx.lineTo(w/2, -h/2);
+  ctx.strokeStyle = borderColor; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+}
+
 function drawEnvelope(x, y, w, h, color, borderColor, rot) {
-  X.save();
-  X.translate(x, y);
-  X.rotate(rot || 0);
-  X.fillStyle = color;
-  X.strokeStyle = borderColor;
-  X.lineWidth = 2;
-  X.beginPath(); X.roundRect(-w/2, -h/2, w, h, 5); X.fill(); X.stroke();
-  X.beginPath();
-  X.moveTo(-w/2, -h/2);
-  X.lineTo(0, h * 0.05);
-  X.lineTo(w/2, -h/2);
-  X.strokeStyle = borderColor; X.lineWidth = 1.5; X.stroke();
-  X.restore();
+  drawEnvelopeOn(X, x, y, w, h, color, borderColor, rot);
 }
 
 function drawBgEnvelope(x, y, s, rot) {
@@ -551,25 +557,145 @@ function drawBgPlane(x, y, s, phase) {
   X.restore();
 }
 
-function drawAirmailBorder() {
+function drawAirmailBorder(ctx = X, width = W, height = H) {
   const stripe = 10;
-  for (let i = 0; i < W + H; i += stripe * 2) {
-    X.fillStyle = 'rgba(210,60,80,0.10)';
-    X.fillRect(i, 0, stripe, 6);
-    X.fillRect(i - H, H - 6, stripe, 6);
-    X.fillStyle = 'rgba(70,110,200,0.10)';
-    X.fillRect(i + stripe, 0, stripe, 6);
-    X.fillRect(i - H + stripe, H - 6, stripe, 6);
+  for (let i = 0; i < width + height; i += stripe * 2) {
+    ctx.fillStyle = 'rgba(210,60,80,0.10)';
+    ctx.fillRect(i, 0, stripe, 6);
+    ctx.fillRect(i - height, height - 6, stripe, 6);
+    ctx.fillStyle = 'rgba(70,110,200,0.10)';
+    ctx.fillRect(i + stripe, 0, stripe, 6);
+    ctx.fillRect(i - height + stripe, height - 6, stripe, 6);
   }
 }
 
+function paintGradientBackdrop(ctx) {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0e1a3a');
+  grad.addColorStop(1, '#1a2750');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function paintMainBackdrop(ctx) {
+  paintGradientBackdrop(ctx);
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y < H; y += 24) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  drawAirmailBorder(ctx, W, H);
+}
+
+function paintMenuChrome(ctx) {
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff6600';
+  ctx.font = 'bold 48px Courier New';
+  ctx.fillText('📧 SPAM INVADERS 📧', W/2, 130);
+
+  ctx.fillStyle = '#aaccff';
+  ctx.font = '18px Courier New';
+  ctx.fillText('Defend your inbox from spam!', W/2, 185);
+
+  ctx.fillStyle = '#ff4444';
+  ctx.font = '15px Courier New';
+  ctx.fillText('🔫 SHOOT spam emails (dark red) to block them', W/2, 248);
+  ctx.fillStyle = '#44ff44';
+  ctx.fillText('📬 Let legit emails (green) pass through safely', W/2, 278);
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillText('⭐ Catch VIP emails (gold) for extra lives!', W/2, 308);
+  ctx.fillStyle = '#ff8866';
+  ctx.fillText('💀 Spam that gets past the mailman costs a life', W/2, 338);
+
+  ctx.fillStyle = '#88aaff';
+  ctx.font = '14px Courier New';
+  ctx.fillText('← → or A/D to move  |  SPACE to shoot', W/2, 398);
+
+  ctx.fillStyle = '#ffcc66';
+  ctx.font = '16px Courier New';
+  ctx.fillText('[ L: LEADERBOARD ]    [ T: CHANGE API KEY ]', W/2, 490);
+
+  drawEnvelopeOn(ctx, W/2 - 200, 530, 72, 42, '#4a2020', '#cc6644', -0.06);
+  ctx.fillStyle = '#ffccaa';
+  ctx.font = '8px Courier New';
+  ctx.fillText('🎰 YOU WON $1M!', W/2 - 200, 534);
+  ctx.fillStyle = '#ff6666';
+  ctx.font = '10px Courier New';
+  ctx.fillText('SPAM', W/2 - 200, 564);
+
+  drawEnvelopeOn(ctx, W/2, 530, 72, 42, '#c8f0d8', '#44cc88', 0);
+  ctx.fillStyle = '#1a5533';
+  ctx.font = '8px Courier New';
+  ctx.fillText('📋 Sprint Review', W/2, 534);
+  ctx.fillStyle = '#66ff88';
+  ctx.font = '10px Courier New';
+  ctx.fillText('LEGIT', W/2, 564);
+
+  drawEnvelopeOn(ctx, W/2 + 200, 530, 72, 42, '#fff3c0', '#ddaa22', 0.06);
+  ctx.fillStyle = '#665500';
+  ctx.font = '8px Courier New';
+  ctx.fillText('⭐ From: Nir Zohar', W/2 + 200, 534);
+  ctx.fillStyle = '#ffdd44';
+  ctx.font = '10px Courier New';
+  ctx.fillText('VIP', W/2 + 200, 564);
+
+  ctx.fillStyle = '#555';
+  ctx.font = '11px Courier New';
+  ctx.fillText('A Wix Emails Production 🚀', W/2, H - 15);
+}
+
+function paintPlayfieldChrome(ctx) {
+  ctx.fillStyle = 'rgba(100,150,255,0.04)';
+  ctx.fillRect(0, H - 65, W, 65);
+  ctx.strokeStyle = 'rgba(100,150,255,0.15)';
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, H - 65);
+  ctx.lineTo(W, H - 65);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function paintLeaderboardChrome(ctx) {
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = 'bold 36px Courier New';
+  ctx.fillText('🏆 LEADERBOARD 🏆', W/2, 80);
+  ctx.fillStyle = '#88aaff';
+  ctx.font = '16px Courier New';
+  ctx.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W/2, 540);
+}
+
+function paintLeaderboardRows(ctx) {
+  if (leaderboard.length === 0) {
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.font = '18px Courier New';
+    ctx.fillText('No scores yet!', W/2, 200);
+    return;
+  }
+
+  leaderboard.forEach((entry, i) => {
+    const y = 130 + i * 38;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    ctx.fillStyle = i < 3 ? '#ffdd66' : '#aaaacc';
+    ctx.font = `${i < 3 ? 'bold ' : ''}18px Courier New`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${medal} ${(i+1+'').padStart(2)}. ${entry.email.padEnd(28)} ${(entry.score+'').padStart(6)}pts  Lv.${entry.level}`, W/2 - 320, y);
+  });
+}
+
 function draw() {
-  let grad = X.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0e1a3a'); grad.addColorStop(1, '#1a2750');
-  X.fillStyle = grad; X.fillRect(0, 0, W, H);
+  const now = Date.now();
 
   if (state === 'apikey') {
-    const blink = Date.now() % 1000 < 500;
+    layerCache.drawLayer(X, 'apikeyBackdrop', paintGradientBackdrop);
+    const blink = now % 1000 < 500;
     const keyValid = isValidApiKey(apiKeyInput);
     const fieldX = W/2 - 280;
     const fieldW = 560;
@@ -605,92 +731,40 @@ function draw() {
     return;
   }
 
-  X.strokeStyle = 'rgba(255,255,255,0.025)';
-  X.lineWidth = 1;
-  for (let y = 0; y < H; y += 24) {
-    X.beginPath(); X.moveTo(0, y); X.lineTo(W, y); X.stroke();
-  }
-
-  drawAirmailBorder();
+  layerCache.drawLayer(X, 'mainBackdrop', paintMainBackdrop);
 
   mailField.forEach(m => {
-    let phase = Date.now() * 0.0008 + m.phase;
+    let phase = now * 0.0008 + m.phase;
     if (m.kind === 'env') drawBgEnvelope(m.x, m.y, m.s, m.rot + Math.sin(phase) * 0.05);
     else if (m.kind === 'at') drawBgAt(m.x, m.y, m.s, phase);
     else drawBgPlane(m.x, m.y, m.s, phase);
   });
 
   if (state === 'menu') {
+    layerCache.drawLayer(X, 'menuChrome', paintMenuChrome);
     X.textAlign = 'center';
-    X.fillStyle = '#ff6600'; X.font = 'bold 48px Courier New';
-    X.fillText('📧 SPAM INVADERS 📧', W/2, 130);
-
-    X.fillStyle = '#aaccff'; X.font = '18px Courier New';
-    X.fillText('Defend your inbox from spam!', W/2, 185);
-
-    X.fillStyle = '#ff4444'; X.font = '15px Courier New';
-    X.fillText('🔫 SHOOT spam emails (dark red) to block them', W/2, 248);
-    X.fillStyle = '#44ff44';
-    X.fillText('📬 Let legit emails (green) pass through safely', W/2, 278);
-    X.fillStyle = '#ffdd44';
-    X.fillText('⭐ Catch VIP emails (gold) for extra lives!', W/2, 308);
-    X.fillStyle = '#ff8866';
-    X.fillText('💀 Spam that gets past the mailman costs a life', W/2, 338);
-
-    X.fillStyle = '#88aaff'; X.font = '14px Courier New';
-    X.fillText('← → or A/D to move  |  SPACE to shoot', W/2, 398);
-
-    X.fillStyle = '#fff'; X.font = 'bold 22px Courier New';
-    let pulse = 0.7 + Math.sin(Date.now() * 0.004) * 0.3;
+    X.fillStyle = '#fff';
+    X.font = 'bold 22px Courier New';
+    let pulse = 0.7 + Math.sin(now * 0.004) * 0.3;
     X.globalAlpha = pulse;
     X.fillText('[ PRESS SPACE TO START ]', W/2, 458);
     X.globalAlpha = 1;
-
-    X.fillStyle = '#ffcc66'; X.font = '16px Courier New';
-    X.fillText('[ L: LEADERBOARD ]    [ T: CHANGE API KEY ]', W/2, 490);
-
-    // Sample envelopes
-    drawEnvelope(W/2 - 200, 530, 72, 42, '#4a2020', '#cc6644', -0.06);
-    X.fillStyle = '#ffccaa'; X.font = '8px Courier New'; X.textAlign = 'center';
-    X.fillText('🎰 YOU WON $1M!', W/2 - 200, 534);
-    X.fillStyle = '#ff6666'; X.font = '10px Courier New';
-    X.fillText('SPAM', W/2 - 200, 564);
-
-    drawEnvelope(W/2, 530, 72, 42, '#c8f0d8', '#44cc88', 0);
-    X.fillStyle = '#1a5533'; X.font = '8px Courier New';
-    X.fillText('📋 Sprint Review', W/2, 534);
-    X.fillStyle = '#66ff88'; X.font = '10px Courier New';
-    X.fillText('LEGIT', W/2, 564);
-
-    drawEnvelope(W/2 + 200, 530, 72, 42, '#fff3c0', '#ddaa22', 0.06);
-    X.fillStyle = '#665500'; X.font = '8px Courier New';
-    X.fillText('⭐ From: Nir Zohar', W/2 + 200, 534);
-    X.fillStyle = '#ffdd44'; X.font = '10px Courier New';
-    X.fillText('VIP', W/2 + 200, 564);
-
-    X.fillStyle = '#555'; X.font = '11px Courier New'; X.textAlign = 'center';
-    X.fillText('A Wix Emails Production 🚀', W/2, H - 15);
     return;
   }
 
   if (state === 'play' || state === 'over') {
-    X.fillStyle = 'rgba(100,150,255,0.04)';
-    X.fillRect(0, H - 65, W, 65);
-    X.strokeStyle = 'rgba(100,150,255,0.15)';
-    X.setLineDash([5, 5]);
-    X.beginPath(); X.moveTo(0, H - 65); X.lineTo(W, H - 65); X.stroke();
-    X.setLineDash([]);
+    layerCache.drawLayer(X, 'playfieldChrome', paintPlayfieldChrome);
 
     // Emails
     emails.forEach(e => {
-      let bob = Math.sin(Date.now() * 0.003 + e.bobOffset) * 1.5;
+      let bob = Math.sin(now * 0.003 + e.bobOffset) * 1.5;
       let ey = e.y + bob;
 
       if (e.vip) {
         // Gold envelope with sparkle
         drawEnvelope(e.x, ey, e.w, e.h, '#fff3c0', '#ddaa22', e.rotation);
         X.shadowColor = '#ffdd44';
-        X.shadowBlur = 10 + Math.sin(Date.now() * 0.008) * 5;
+        X.shadowBlur = 10 + Math.sin(now * 0.008) * 5;
         X.fillStyle = 'rgba(255,221,68,0.15)';
         X.beginPath(); X.roundRect(e.x - e.w/2 - 4, ey - e.h/2 - 4, e.w + 8, e.h + 8, 8); X.fill();
         X.shadowBlur = 0;
@@ -698,7 +772,7 @@ function draw() {
       } else if (e.legit) {
         drawEnvelope(e.x, ey, e.w, e.h, '#c8f0d8', '#44cc88', e.rotation);
         X.shadowColor = '#44ff88';
-        X.shadowBlur = 5 + Math.sin(Date.now() * 0.005) * 2;
+        X.shadowBlur = 5 + Math.sin(now * 0.005) * 2;
         X.fillStyle = 'rgba(68,255,136,0.06)';
         X.beginPath(); X.roundRect(e.x - e.w/2 - 2, ey - e.h/2 - 2, e.w + 4, e.h + 4, 6); X.fill();
         X.shadowBlur = 0;
@@ -873,7 +947,7 @@ function draw() {
     X.fillText(`Reached Level: ${level}`, W/2, 265);
 
     if (enteringEmail) {
-      const blink = Date.now() % 1000 < 500;
+      const blink = now % 1000 < 500;
       const emailValid = isValidEmail(emailInput);
       const fieldX = W/2 - 200;
       const fieldW = 400;
@@ -939,27 +1013,8 @@ function draw() {
   }
 
   if (state === 'leaderboard') {
-    X.fillStyle = 'rgba(0,0,0,0.88)'; X.fillRect(0, 0, W, H);
-    X.textAlign = 'center';
-    X.fillStyle = '#ffcc00'; X.font = 'bold 36px Courier New';
-    X.fillText('🏆 LEADERBOARD 🏆', W/2, 80);
-
-    leaderboard.forEach((entry, i) => {
-      let y = 130 + i * 38;
-      let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
-      X.fillStyle = i < 3 ? '#ffdd66' : '#aaaacc';
-      X.font = `${i < 3 ? 'bold ' : ''}18px Courier New`;
-      X.textAlign = 'left';
-      X.fillText(`${medal} ${(i+1+'').padStart(2)}. ${entry.email.padEnd(28)} ${(entry.score+'').padStart(6)}pts  Lv.${entry.level}`, W/2 - 320, y);
-    });
-
-    if (leaderboard.length === 0) {
-      X.fillStyle = '#666'; X.textAlign = 'center'; X.font = '18px Courier New';
-      X.fillText('No scores yet!', W/2, 200);
-    }
-
-    X.textAlign = 'center'; X.fillStyle = '#88aaff'; X.font = '16px Courier New';
-    X.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W/2, 540);
+    layerCache.drawLayer(X, 'leaderboardChrome', paintLeaderboardChrome);
+    layerCache.drawLayer(X, 'leaderboardRows', paintLeaderboardRows);
   }
 }
 
