@@ -4,6 +4,12 @@ const W = 800, H = 600;
 C.width = W; C.height = H;
 const layerCache = RenderCache.createLayerCache({ width: W, height: H });
 const spriteCache = RenderCache.createSpriteCache();
+const {
+  advanceBulletsInPlace,
+  resolveBulletEmailCollisionsInPlace,
+  resolveEmailsInPlace,
+  advanceParticlesInPlace
+} = EntityUpdates;
 const EMAIL_SPRITE_W = 84, EMAIL_SPRITE_H = 54;
 const EMAIL_ANCHOR_X = EMAIL_SPRITE_W / 2, EMAIL_ANCHOR_Y = EMAIL_SPRITE_H / 2;
 const EMAIL_LABEL_SPRITE_W = 80, EMAIL_LABEL_SPRITE_H = 20;
@@ -366,7 +372,7 @@ function advanceLevel() {
     emailsHandled = 0;
     specialSpawned = false;
     levelTransition = 2000;
-    emails = [];
+    emails.length = 0;
     flashMsg = `📬 LEVEL ${level}!`; flashTimer = 1800;
     score += level * 30;
     sfx.levelComplete();
@@ -401,7 +407,7 @@ function update(dt) {
     sfx.throwPlane();
   }
 
-  bullets = bullets.filter(b => { b.y += b.vy; return b.y > -10; });
+  advanceBulletsInPlace(bullets, -10);
 
   if (comboTimer > 0) comboTimer -= dt; else comboCount = 0;
   if (flashTimer > 0) flashTimer -= dt;
@@ -409,69 +415,71 @@ function update(dt) {
   emails.forEach(e => { e.y += e.vy; e.flash = Math.max(0, e.flash - 0.05); });
 
   // Bullet vs email
-  bullets = bullets.filter(b => {
-    for (let i = emails.length - 1; i >= 0; i--) {
-      let e = emails[i];
-      if (Math.abs(b.x - e.x) < e.w / 2 + 2 && Math.abs(b.y - e.y) < e.h / 2 + 2) {
-        if (e.vip) {
-          lives--;
-          score = Math.max(0, score - 100);
-          flashMsg = `❌ You destroyed ${e.vipData.name}'s email! -100`; flashTimer = 1500;
-          spawnParticles(e.x, e.y, '#ff44ff', 20);
-          comboCount = 0;
-          sfx.hitVip();
-        } else if (e.legit) {
-          lives--;
-          score = Math.max(0, score - 50);
-          flashMsg = '❌ Legit email destroyed! -50'; flashTimer = 1200;
-          spawnParticles(e.x, e.y, '#ff4444', 15);
-          comboCount = 0;
-          sfx.hitLegit();
-        } else {
-          comboCount++; comboTimer = 2000;
-          let pts = 10 * (1 + Math.floor(comboCount / 3));
-          score += pts;
-          if (comboCount >= 3) { flashMsg = `🔥 Combo x${comboCount}! +${pts}`; flashTimer = 800; }
-          spawnParticles(e.x, e.y, '#ff6600', 12);
-          sfx.hitSpam();
-        }
-        advanceLevel();
-        emails.splice(i, 1);
-        return false;
+  resolveBulletEmailCollisionsInPlace({
+    bullets,
+    emails,
+    collides(b, e) {
+      return Math.abs(b.x - e.x) < e.w / 2 + 2 && Math.abs(b.y - e.y) < e.h / 2 + 2;
+    },
+    onCollision(_bullet, e) {
+      if (e.vip) {
+        lives--;
+        score = Math.max(0, score - 100);
+        flashMsg = `❌ You destroyed ${e.vipData.name}'s email! -100`; flashTimer = 1500;
+        spawnParticles(e.x, e.y, '#ff44ff', 20);
+        comboCount = 0;
+        sfx.hitVip();
+      } else if (e.legit) {
+        lives--;
+        score = Math.max(0, score - 50);
+        flashMsg = '❌ Legit email destroyed! -50'; flashTimer = 1200;
+        spawnParticles(e.x, e.y, '#ff4444', 15);
+        comboCount = 0;
+        sfx.hitLegit();
+      } else {
+        comboCount++; comboTimer = 2000;
+        let pts = 10 * (1 + Math.floor(comboCount / 3));
+        score += pts;
+        if (comboCount >= 3) { flashMsg = `🔥 Combo x${comboCount}! +${pts}`; flashTimer = 800; }
+        spawnParticles(e.x, e.y, '#ff6600', 12);
+        sfx.hitSpam();
       }
+      advanceLevel();
     }
-    return true;
   });
 
   // Emails reaching bottom / hitting mailman
-  emails = emails.filter(e => {
-    let hitMailman = e.y >= player.y - 20 && e.y <= player.y + 15 && Math.abs(e.x - player.x) < (player.w / 2 + e.w / 2 - 5);
-    let fellPast = e.y > H + 20;
+  resolveEmailsInPlace({
+    emails,
+    classify(e) {
+      let hitMailman = e.y >= player.y - 20 && e.y <= player.y + 15 && Math.abs(e.x - player.x) < (player.w / 2 + e.w / 2 - 5);
+      if (hitMailman) return 'hitMailman';
 
-    if (hitMailman) {
-      if (e.vip) {
-        lives = Math.min(lives + 1, 5);
-        score += 50;
-        flashMsg = bonusLifeMessages[Math.floor(Math.random() * bonusLifeMessages.length)].replace('{name}', e.vipData.name); flashTimer = 1500;
-        spawnParticles(e.x, e.y, '#ffdd44', 20);
-      } else if (e.legit) {
-        // Legit caught by mailman — delivered
-        score += 15;
-        spawnParticles(e.x, e.y, '#44ff88', 8);
-      } else {
-        // Spam hit the mailman — lose life
-        lives--;
-        flashMsg = '💀 Spam slipped past the mailman!'; flashTimer = 1000;
-        spawnParticles(e.x, e.y, '#ff4444', 15);
-        comboCount = 0;
-        sfx.spamBreached();
-      }
-      advanceLevel();
-      return false;
-    }
+      let fellPast = e.y > H + 20;
+      if (fellPast) return 'fellPast';
 
-    if (fellPast) {
-      if (e.vip) {
+      return null;
+    },
+    onRemove(e, reason) {
+      if (reason === 'hitMailman') {
+        if (e.vip) {
+          lives = Math.min(lives + 1, 5);
+          score += 50;
+          flashMsg = bonusLifeMessages[Math.floor(Math.random() * bonusLifeMessages.length)].replace('{name}', e.vipData.name); flashTimer = 1500;
+          spawnParticles(e.x, e.y, '#ffdd44', 20);
+        } else if (e.legit) {
+          // Legit caught by mailman — delivered
+          score += 15;
+          spawnParticles(e.x, e.y, '#44ff88', 8);
+        } else {
+          // Spam hit the mailman — lose life
+          lives--;
+          flashMsg = '💀 Spam slipped past the mailman!'; flashTimer = 1000;
+          spawnParticles(e.x, e.y, '#ff4444', 15);
+          comboCount = 0;
+          sfx.spamBreached();
+        }
+      } else if (e.vip) {
         // Missed VIP — no penalty, just missed opportunity
         flashMsg = `📭 Missed ${e.vipData.name}'s email!`; flashTimer = 1000;
         spawnParticles(e.x, H, '#ffaa44', 8);
@@ -488,12 +496,10 @@ function update(dt) {
         sfx.spamBreached();
       }
       advanceLevel();
-      return false;
     }
-    return true;
   });
 
-  particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0; });
+  advanceParticlesInPlace(particles);
   mailField.forEach(m => { m.y += m.sp; if (m.y > H + 20) { m.y = -20; m.x = Math.random() * W; } });
 
   if (lives <= 0) {
