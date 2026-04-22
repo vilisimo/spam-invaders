@@ -97,12 +97,13 @@ function fitCanvas() {
 fitCanvas();
 window.addEventListener('resize', fitCanvas);
 
-let boothApiKey = '';
 const SUBMIT_SCORES_URL = 'https://wix-conf-vilnius.base44.app/api/functions/submitScores';
-
-let state = 'apikey';
-let apiKeyInput = '';
 const isValidApiKey = v => /^booth_[A-Za-z0-9]+$/.test(v);
+
+const storedApiKey = localStorage.getItem('spamInvadersApiKey') || '';
+let boothApiKey = isValidApiKey(storedApiKey) ? storedApiKey : '';
+let state = boothApiKey ? 'menu' : 'apikey';
+let apiKeyInput = '';
 let submitStatus = null;
 let submitMessage = '';
 let score = 0, lives = 3, level = 1;
@@ -277,6 +278,7 @@ document.addEventListener('keydown', e => {
     } else if (e.key === 'Enter') {
       if (isValidApiKey(apiKeyInput)) {
         boothApiKey = apiKeyInput;
+        localStorage.setItem('spamInvadersApiKey', boothApiKey);
         state = 'menu';
       }
     } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && apiKeyInput.length < 80) {
