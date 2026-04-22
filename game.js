@@ -12,6 +12,7 @@ const BULLET_SPRITE_W = 16, BULLET_SPRITE_H = 16;
 const BULLET_ANCHOR_X = BULLET_SPRITE_W / 2, BULLET_ANCHOR_Y = BULLET_SPRITE_H / 2;
 const MAILMAN_SPRITE_W = 64, MAILMAN_SPRITE_H = 64;
 const MAILMAN_ANCHOR_X = 28, MAILMAN_ANCHOR_Y = 22;
+const noiseBufferCache = AudioCache.createNoiseBufferCache();
 
 let audioCtx = null;
 function ensureAudio() {
@@ -44,12 +45,8 @@ function playNoise({ dur = 0.12, vol = 0.1, filterFreq = 2000, delay = 0 }) {
   const ctx = ensureAudio();
   if (!ctx) return;
   const t0 = ctx.currentTime + delay;
-  const bufferSize = Math.floor(ctx.sampleRate * dur);
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
   const src = ctx.createBufferSource();
-  src.buffer = buffer;
+  src.buffer = noiseBufferCache.getBuffer(ctx, dur);
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.value = filterFreq;
