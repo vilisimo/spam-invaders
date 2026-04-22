@@ -111,7 +111,7 @@ let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
 let leaderboard = JSON.parse(localStorage.getItem('spamInvadersLeaderboard') || '[]');
 let emailInput = '', enteringEmail = false;
-const isValidEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const isValidEmail = v => /^[^\s@]+@wix\.com$/i.test(v);
 const gameOverMessages = [
   'PRINCE SUCCESSFULLY TRANSFERRED FUNDS',
   'PRINCE KEPT THE $47,000,000',
