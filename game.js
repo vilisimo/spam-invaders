@@ -3,6 +3,15 @@ const X = C.getContext('2d');
 const W = 800, H = 600;
 C.width = W; C.height = H;
 const layerCache = RenderCache.createLayerCache({ width: W, height: H });
+const spriteCache = RenderCache.createSpriteCache();
+const EMAIL_SPRITE_W = 84, EMAIL_SPRITE_H = 54;
+const EMAIL_ANCHOR_X = EMAIL_SPRITE_W / 2, EMAIL_ANCHOR_Y = EMAIL_SPRITE_H / 2;
+const EMAIL_LABEL_SPRITE_W = 80, EMAIL_LABEL_SPRITE_H = 20;
+const EMAIL_LABEL_ANCHOR_X = EMAIL_LABEL_SPRITE_W / 2, EMAIL_LABEL_ANCHOR_Y = EMAIL_LABEL_SPRITE_H / 2;
+const BULLET_SPRITE_W = 16, BULLET_SPRITE_H = 16;
+const BULLET_ANCHOR_X = BULLET_SPRITE_W / 2, BULLET_ANCHOR_Y = BULLET_SPRITE_H / 2;
+const MAILMAN_SPRITE_W = 64, MAILMAN_SPRITE_H = 64;
+const MAILMAN_ANCHOR_X = 28, MAILMAN_ANCHOR_Y = 22;
 
 let audioCtx = null;
 function ensureAudio() {
@@ -234,6 +243,11 @@ function spawnEmail() {
   let isLegit = isVip ? true : Math.random() < params.legitRatio;
   let lane = 45 + Math.random() * (W - 90);
   let vipData = isVip ? VIP[Math.floor(Math.random() * VIP.length)] : null;
+  let mailType = isVip ? 'vip' : isLegit ? 'legit' : 'spam';
+  let label = isVip ? vipData.label : (isLegit ? LEGIT[Math.floor(Math.random() * LEGIT.length)] : SPAM[Math.floor(Math.random() * SPAM.length)]);
+  let displayLabel = label.length > 14 ? label.slice(0, 14) : label;
+  let spriteKey = `shell:${mailType}`;
+  let labelSpriteKey = `label:${mailType}:${displayLabel}`;
   emails.push({
     x: lane, y: -40,
     w: 72, h: 42,
@@ -241,7 +255,9 @@ function spawnEmail() {
     legit: isLegit,
     vip: isVip,
     vipData: vipData,
-    label: isVip ? vipData.label : (isLegit ? LEGIT[Math.floor(Math.random() * LEGIT.length)] : SPAM[Math.floor(Math.random() * SPAM.length)]),
+    displayLabel,
+    spriteKey,
+    labelSpriteKey,
     bobOffset: Math.random() * Math.PI * 2,
     flash: 0,
     rotation: (Math.random() - 0.5) * 0.1
@@ -491,10 +507,6 @@ function drawEnvelopeOn(ctx, x, y, w, h, color, borderColor, rot) {
   ctx.restore();
 }
 
-function drawEnvelope(x, y, w, h, color, borderColor, rot) {
-  drawEnvelopeOn(X, x, y, w, h, color, borderColor, rot);
-}
-
 function drawBgEnvelope(x, y, s, rot) {
   let w = 28 * s, h = 18 * s;
   X.save();
@@ -674,6 +686,137 @@ function paintLeaderboardRows(ctx) {
   });
 }
 
+function drawSprite(ctx, sprite, x, y, anchorX, anchorY, rotation = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (rotation) ctx.rotate(rotation);
+  ctx.drawImage(sprite, -anchorX, -anchorY);
+  ctx.restore();
+}
+
+function paintEmailShellSprite(ctx, fillColor, borderColor) {
+  drawEnvelopeOn(ctx, EMAIL_ANCHOR_X, EMAIL_ANCHOR_Y, 72, 42, fillColor, borderColor, 0);
+}
+
+function getEmailSprite(email) {
+  return spriteCache.getSprite(email.spriteKey, EMAIL_SPRITE_W, EMAIL_SPRITE_H, ctx => {
+    if (email.vip) {
+      paintEmailShellSprite(ctx, '#fff3c0', '#ddaa22');
+    } else if (email.legit) {
+      paintEmailShellSprite(ctx, '#c8f0d8', '#44cc88');
+    } else {
+      paintEmailShellSprite(ctx, '#4a2020', '#cc6644');
+    }
+  });
+}
+
+function getEmailLabelSprite(email) {
+  return spriteCache.getSprite(email.labelSpriteKey, EMAIL_LABEL_SPRITE_W, EMAIL_LABEL_SPRITE_H, ctx => {
+    ctx.fillStyle = email.vip ? '#665500' : email.legit ? '#1a5533' : '#ffccaa';
+    ctx.font = '8px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(email.displayLabel, EMAIL_LABEL_ANCHOR_X, EMAIL_LABEL_ANCHOR_Y + 1);
+  });
+}
+
+function getBulletSprite() {
+  return spriteCache.getSprite('bullet', BULLET_SPRITE_W, BULLET_SPRITE_H, ctx => {
+    const x = BULLET_ANCHOR_X;
+    const y = BULLET_ANCHOR_Y;
+    ctx.shadowColor = '#aaccff';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = '#f8fbff';
+    ctx.strokeStyle = '#5a6a80';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 7);
+    ctx.lineTo(x - 6, y + 4);
+    ctx.lineTo(x + 6, y + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = '#c8d4e8';
+    ctx.beginPath();
+    ctx.moveTo(x, y - 7);
+    ctx.lineTo(x, y + 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+}
+
+function getMailmanSprite() {
+  return spriteCache.getSprite('mailman', MAILMAN_SPRITE_W, MAILMAN_SPRITE_H, ctx => {
+    const px = MAILMAN_ANCHOR_X;
+    const py = MAILMAN_ANCHOR_Y;
+
+    ctx.fillStyle = '#1a2a4a';
+    ctx.fillRect(px - 13, py + 10, 9, 6);
+    ctx.fillRect(px + 4, py + 10, 9, 6);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(px - 14, py + 14, 11, 3);
+    ctx.fillRect(px + 3, py + 14, 11, 3);
+
+    ctx.fillStyle = '#2a5db8';
+    ctx.beginPath(); ctx.roundRect(px - 18, py - 4, 36, 16, 3); ctx.fill();
+    ctx.strokeStyle = '#4a7dd8'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.fillStyle = '#2a5db8';
+    ctx.fillRect(px - 22, py - 2, 6, 13);
+    ctx.fillRect(px + 16, py - 2, 6, 13);
+
+    ctx.fillStyle = '#f0c8a0';
+    ctx.beginPath(); ctx.arc(px - 19, py + 12, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + 19, py + 12, 2.5, 0, Math.PI * 2); ctx.fill();
+
+    ctx.strokeStyle = '#6b4423'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px - 15, py - 5); ctx.lineTo(px + 18, py + 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#a87050';
+    ctx.beginPath(); ctx.roundRect(px + 14, py + 3, 16, 13, 2); ctx.fill();
+    ctx.strokeStyle = '#6b4423'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + 17, py + 6, 8, 6);
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 0.5; ctx.strokeRect(px + 17, py + 6, 8, 6);
+    ctx.beginPath();
+    ctx.moveTo(px + 17, py + 6); ctx.lineTo(px + 21, py + 9); ctx.lineTo(px + 25, py + 6);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffdd44';
+    ctx.fillRect(px - 14, py - 1, 5, 4);
+    ctx.fillRect(px - 1, py, 2, 2);
+    ctx.fillRect(px - 1, py + 5, 2, 2);
+
+    ctx.fillStyle = '#f0c8a0';
+    ctx.fillRect(px - 3, py - 8, 6, 5);
+    ctx.beginPath(); ctx.arc(px, py - 12, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b08060'; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px - 3, py - 13, 1.5, 1.5);
+    ctx.fillRect(px + 1.5, py - 13, 1.5, 1.5);
+
+    ctx.fillStyle = '#1a3a78';
+    ctx.beginPath(); ctx.roundRect(px - 10, py - 22, 20, 8, 3); ctx.fill();
+    ctx.strokeStyle = '#3a5a98'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#0a1a3a';
+    ctx.beginPath(); ctx.roundRect(px - 12, py - 16, 24, 3, 1); ctx.fill();
+
+    ctx.fillStyle = '#ffdd44';
+    ctx.fillRect(px - 3, py - 20, 6, 4);
+    ctx.strokeStyle = '#8a6a00'; ctx.lineWidth = 0.5; ctx.strokeRect(px - 3, py - 20, 6, 4);
+    ctx.beginPath();
+    ctx.moveTo(px - 3, py - 20); ctx.lineTo(px, py - 18); ctx.lineTo(px + 3, py - 20);
+    ctx.stroke();
+
+    ctx.fillStyle = '#aaddff';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('MAILMAN', px, py + 28);
+  });
+}
+
 function draw() {
   const now = Date.now();
 
@@ -738,142 +881,39 @@ function draw() {
 
   if (state === 'play' || state === 'over') {
     layerCache.drawLayer(X, 'playfieldChrome', paintPlayfieldChrome);
+    const bulletSprite = getBulletSprite();
+    const mailmanSprite = getMailmanSprite();
 
     // Emails
     emails.forEach(e => {
       let bob = Math.sin(now * 0.003 + e.bobOffset) * 1.5;
       let ey = e.y + bob;
+      drawSprite(X, getEmailSprite(e), e.x, ey, EMAIL_ANCHOR_X, EMAIL_ANCHOR_Y, e.rotation);
 
       if (e.vip) {
-        // Gold envelope with sparkle
-        drawEnvelope(e.x, ey, e.w, e.h, '#fff3c0', '#ddaa22', e.rotation);
         X.shadowColor = '#ffdd44';
         X.shadowBlur = 10 + Math.sin(now * 0.008) * 5;
         X.fillStyle = 'rgba(255,221,68,0.15)';
         X.beginPath(); X.roundRect(e.x - e.w/2 - 4, ey - e.h/2 - 4, e.w + 8, e.h + 8, 8); X.fill();
         X.shadowBlur = 0;
-        X.fillStyle = '#665500';
       } else if (e.legit) {
-        drawEnvelope(e.x, ey, e.w, e.h, '#c8f0d8', '#44cc88', e.rotation);
         X.shadowColor = '#44ff88';
         X.shadowBlur = 5 + Math.sin(now * 0.005) * 2;
         X.fillStyle = 'rgba(68,255,136,0.06)';
         X.beginPath(); X.roundRect(e.x - e.w/2 - 2, ey - e.h/2 - 2, e.w + 4, e.h + 4, 6); X.fill();
         X.shadowBlur = 0;
-        X.fillStyle = '#1a5533';
-      } else {
-        let f = e.flash;
-        let r = Math.floor(74 + f * 180), g = Math.floor(32 + f * 100), b2 = Math.floor(32 + f * 80);
-        drawEnvelope(e.x, ey, e.w, e.h, `rgb(${r},${g},${b2})`, '#cc6644', e.rotation);
-        X.fillStyle = '#ffccaa';
       }
-      X.font = '8px Courier New'; X.textAlign = 'center';
-      let lbl = e.label.length > 14 ? e.label.slice(0, 14) : e.label;
-      X.fillText(lbl, e.x, ey + 4);
+      drawSprite(X, getEmailLabelSprite(e), e.x, ey + 4, EMAIL_LABEL_ANCHOR_X, EMAIL_LABEL_ANCHOR_Y);
     });
 
     // Bullets
     bullets.forEach(b => {
-      X.shadowColor = '#aaccff'; X.shadowBlur = 6;
-      X.fillStyle = '#f8fbff';
-      X.strokeStyle = '#5a6a80';
-      X.lineWidth = 1;
-      X.beginPath();
-      X.moveTo(b.x, b.y - 7);
-      X.lineTo(b.x - 6, b.y + 4);
-      X.lineTo(b.x + 6, b.y + 4);
-      X.closePath();
-      X.fill();
-      X.stroke();
-      X.strokeStyle = '#c8d4e8';
-      X.beginPath();
-      X.moveTo(b.x, b.y - 7);
-      X.lineTo(b.x, b.y + 2);
-      X.stroke();
-      X.shadowBlur = 0;
+      drawSprite(X, bulletSprite, b.x, b.y, BULLET_ANCHOR_X, BULLET_ANCHOR_Y);
     });
 
     // Player - Mailman
     const px = player.x, py = player.y;
-
-    // Legs
-    X.fillStyle = '#1a2a4a';
-    X.fillRect(px - 13, py + 10, 9, 6);
-    X.fillRect(px + 4, py + 10, 9, 6);
-    // Shoes
-    X.fillStyle = '#0a0a0a';
-    X.fillRect(px - 14, py + 14, 11, 3);
-    X.fillRect(px + 3, py + 14, 11, 3);
-
-    // Body (blue uniform)
-    X.fillStyle = '#2a5db8';
-    X.beginPath(); X.roundRect(px - 18, py - 4, 36, 16, 3); X.fill();
-    X.strokeStyle = '#4a7dd8'; X.lineWidth = 1.5; X.stroke();
-
-    // Arms
-    X.fillStyle = '#2a5db8';
-    X.fillRect(px - 22, py - 2, 6, 13);
-    X.fillRect(px + 16, py - 2, 6, 13);
-    // Hands
-    X.fillStyle = '#f0c8a0';
-    X.beginPath(); X.arc(px - 19, py + 12, 2.5, 0, Math.PI * 2); X.fill();
-    X.beginPath(); X.arc(px + 19, py + 12, 2.5, 0, Math.PI * 2); X.fill();
-
-    // Mail bag strap across chest
-    X.strokeStyle = '#6b4423'; X.lineWidth = 2;
-    X.beginPath();
-    X.moveTo(px - 15, py - 5); X.lineTo(px + 18, py + 10);
-    X.stroke();
-
-    // Mail satchel
-    X.fillStyle = '#a87050';
-    X.beginPath(); X.roundRect(px + 14, py + 3, 16, 13, 2); X.fill();
-    X.strokeStyle = '#6b4423'; X.lineWidth = 1.5; X.stroke();
-    // Envelope peeking out of bag
-    X.fillStyle = '#fff';
-    X.fillRect(px + 17, py + 6, 8, 6);
-    X.strokeStyle = '#888'; X.lineWidth = 0.5; X.strokeRect(px + 17, py + 6, 8, 6);
-    X.beginPath();
-    X.moveTo(px + 17, py + 6); X.lineTo(px + 21, py + 9); X.lineTo(px + 25, py + 6);
-    X.stroke();
-
-    // Chest badge (gold)
-    X.fillStyle = '#ffdd44';
-    X.fillRect(px - 14, py - 1, 5, 4);
-    // Buttons
-    X.fillRect(px - 1, py, 2, 2);
-    X.fillRect(px - 1, py + 5, 2, 2);
-
-    // Neck
-    X.fillStyle = '#f0c8a0';
-    X.fillRect(px - 3, py - 8, 6, 5);
-
-    // Head
-    X.fillStyle = '#f0c8a0';
-    X.beginPath(); X.arc(px, py - 12, 7, 0, Math.PI * 2); X.fill();
-    X.strokeStyle = '#b08060'; X.lineWidth = 1; X.stroke();
-    // Eyes
-    X.fillStyle = '#000';
-    X.fillRect(px - 3, py - 13, 1.5, 1.5);
-    X.fillRect(px + 1.5, py - 13, 1.5, 1.5);
-
-    // Cap (postal cap)
-    X.fillStyle = '#1a3a78';
-    X.beginPath(); X.roundRect(px - 10, py - 22, 20, 8, 3); X.fill();
-    X.strokeStyle = '#3a5a98'; X.lineWidth = 1.5; X.stroke();
-    // Brim
-    X.fillStyle = '#0a1a3a';
-    X.beginPath(); X.roundRect(px - 12, py - 16, 24, 3, 1); X.fill();
-    // Envelope emblem on cap
-    X.fillStyle = '#ffdd44';
-    X.fillRect(px - 3, py - 20, 6, 4);
-    X.strokeStyle = '#8a6a00'; X.lineWidth = 0.5; X.strokeRect(px - 3, py - 20, 6, 4);
-    X.beginPath();
-    X.moveTo(px - 3, py - 20); X.lineTo(px, py - 18); X.lineTo(px + 3, py - 20);
-    X.stroke();
-
-    X.fillStyle = '#aaddff'; X.font = '9px Courier New'; X.textAlign = 'center';
-    X.fillText('MAILMAN', px, py + 28);
+    drawSprite(X, mailmanSprite, px, py, MAILMAN_ANCHOR_X, MAILMAN_ANCHOR_Y);
 
     // Particles
     particles.forEach(p => {
