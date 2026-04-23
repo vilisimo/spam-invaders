@@ -313,7 +313,7 @@ document.addEventListener('keydown', e => {
         enteringEmail = false;
         state = 'leaderboard';
       }
-    } else if (e.key.length === 1 && emailInput.length < 40) {
+    } else if (e.key.length === 1 && !/\s/.test(e.key) && emailInput.length < 40) {
       emailInput += e.key;
     }
     e.preventDefault();
