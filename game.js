@@ -116,6 +116,7 @@ let lastShot = 0, shootCooldown = 280;
 let comboCount = 0, comboTimer = 0;
 let leaderboard = loadLeaderboard(boothApiKey);
 let emailInput = '', enteringEmail = false;
+let confirmingExit = false;
 const isValidEmail = v => /^[^\s@]+@wix\.com$/i.test(v);
 const gameOverMessages = [
   'PRINCE SUCCESSFULLY TRANSFERRED FUNDS',
@@ -296,7 +297,21 @@ document.addEventListener('keydown', e => {
   if (state === 'menu' && (e.key === 'l' || e.key === 'L')) { window.location.href = 'leaderboard.html'; }
   if (state === 'menu' && (e.key === 't' || e.key === 'T')) { window.location.href = 'token/index.html'; }
   if (state === 'over' && enteringEmail) {
-    if (e.key === 'Backspace') {
+    if (confirmingExit) {
+      if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+        confirmingExit = false;
+        enteringEmail = false;
+        emailInput = '';
+        state = 'menu';
+      } else if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
+        confirmingExit = false;
+      }
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Escape') {
+      confirmingExit = true;
+    } else if (e.key === 'Backspace') {
       emailInput = emailInput.slice(0, -1);
     } else if (e.key === 'Enter') {
       if (isValidEmail(emailInput)) {
@@ -468,6 +483,7 @@ function update(dt) {
 
   if (lives <= 0) {
     state = 'over'; enteringEmail = true; emailInput = '';
+    confirmingExit = false;
     gameOverMessage = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
     sfx.gameOver();
   }
@@ -896,6 +912,29 @@ function draw() {
         : submitStatus === 'error' ? '#ff6666'
         : '#aaccff';
       X.fillText(submitMessage, W/2, H - 40);
+    }
+
+    if (enteringEmail && !confirmingExit) {
+      X.textAlign = 'center';
+      X.fillStyle = '#7788aa'; X.font = '12px Courier New';
+      X.fillText('[ ESC: EXIT WITHOUT SAVING ]', W/2, H - 20);
+    }
+
+    if (confirmingExit) {
+      X.fillStyle = 'rgba(0,0,0,0.85)'; X.fillRect(0, 0, W, H);
+      const bx = W/2 - 240, by = H/2 - 90, bw = 480, bh = 180;
+      X.fillStyle = '#1a2750';
+      X.beginPath(); X.roundRect(bx, by, bw, bh, 8); X.fill();
+      X.strokeStyle = '#ff6600'; X.lineWidth = 2;
+      X.strokeRect(bx, by, bw, bh);
+
+      X.textAlign = 'center';
+      X.fillStyle = '#ff6600'; X.font = 'bold 22px Courier New';
+      X.fillText('⚠  EXIT WITHOUT SAVING?', W/2, by + 50);
+      X.fillStyle = '#aaccff'; X.font = '14px Courier New';
+      X.fillText('Your score will not be submitted to the leaderboard.', W/2, by + 85);
+      X.fillStyle = '#fff'; X.font = 'bold 16px Courier New';
+      X.fillText('[ Y / ENTER: EXIT ]     [ N / ESC: STAY ]', W/2, by + 140);
     }
   }
 
